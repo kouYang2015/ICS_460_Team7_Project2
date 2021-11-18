@@ -3,10 +3,12 @@
 <h1> ToDo List </h1>
 
 GUI/CMD Line
-  - [ ] -s option completed, -t and -d are grabbed from command line but need to be implemented still
+  - [X] -s option completed (fully implemented)
+  - [ ] -t grabbed from command line but need to be implemented still 
+  - [ ] -d grabbed from command line but need to be implemented still
 
 WindowFrames (Both Client/Server)
-  - [ ] TBD NEEDS DISCUSSION OF WHAT IS TO BE DONE
+  - [X] Professor said its just the CMD windows. Ignore this. Also Frame size of 1 means we only send one packet at a time and then wait. If it was frame size 3, we would send 3 packets at a time and then wait.
 
 AckPackets
   - [ ] implement ackPackets (will it be its own class? lets discuss this)
