@@ -15,7 +15,8 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 
 public class Client {
-	private final static int PORT = 12345;
+	private final int DEFAULT_PORT = 12345;
+	int port;
 	private DatagramSocket datagramSocket;
 	private InetAddress inetAddress;
 	private byte[] buffer;
@@ -30,16 +31,16 @@ public class Client {
 	private final int DEFAULT_TIMEOUT = 200;
 	private final double DEFAULT_CORRUPTCHANCE = 0;
 	
-	public Client(DatagramSocket datagramSocket, InetAddress inetAddress, int packetSize, int timeout, double corruptchance) {
+	public Client(DatagramSocket datagramSocket, InetAddress inetAddress, int packetSize, int timeout, double corruptchance, int port) {
 		super();
 		this.datagramSocket = datagramSocket;
 		this.inetAddress = inetAddress;
 		this.packetSize = packetSize;
 		
 		if (packetSize == -1) {
-			this.buffer = new byte[DEFAULT_PACKET_SIZE];
-		} else {
-			this.buffer = new byte[packetSize];
+			packetSize = DEFAULT_PACKET_SIZE;
+		} else if (packetSize > 500) {
+			packetSize = 500;
 		}
 		if (timeout == -1) {
 			this.timeout = DEFAULT_TIMEOUT;
@@ -51,15 +52,25 @@ public class Client {
 		} else {
 			this.corruptchance = corruptchance;
 		}
+		if (inetAddress == null) {
+			try {
+				inetAddress = InetAddress.getLocalHost();
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			}
+		}
+		if (port == -1) {
+			this.port = DEFAULT_PORT;
+		}
 	}
 	
 	/**
 	 * Sets the byte[] array to the File we wish to send via the readAllBytes method.
 	 * @param args
 	 */
-	public void setFileContent(String[] args) {
+	public void setFileContent(String file) {
 		try {
-			this.fileContent = Files.readAllBytes(new File(args[0]).toPath());
+			this.fileContent = Files.readAllBytes(new File(file).toPath());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -79,7 +90,7 @@ public class Client {
 			    oos.writeObject(dataPacket);
 			    oos.flush();
 			    byte [] data = bos.toByteArray();
-				DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArray(dataPacket), startOffset, buffer.length, inetAddress, PORT);
+				DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArray(dataPacket), startOffset, buffer.length, inetAddress, port);
 				datagramSocket.send(requestPacket);
 				printToConsole(requestPacket);	
 				startOffset += requestPacket.getLength();
@@ -96,10 +107,10 @@ public class Client {
 		}
 		//Send last packet whose length < buffer.length and send flag packet
 		int lastPackLen = fileContent.length - startOffset;
-		DatagramPacket lastDataPacket = new DatagramPacket(fileContent, startOffset, lastPackLen, inetAddress, PORT);
+		DatagramPacket lastDataPacket = new DatagramPacket(fileContent, startOffset, lastPackLen, inetAddress, port);
 		printToConsole(lastDataPacket);
 		startOffset += lastPackLen;
-		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, PORT);	//TODO: check if we can send 0 length
+		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, port);	//TODO: check if we can send 0 length
 		try {
 			datagramSocket.send(lastDataPacket);		//Send last packet whose length < buffer.length
 			System.out.println("Sending flag: " + flagPacket.getData() + " " + flagPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
@@ -122,7 +133,7 @@ public class Client {
 	public void sendFileName() {
 		String fileName = outputFile.getName();
 		DatagramPacket sendFileNamePacket = new DatagramPacket(fileName.getBytes(), fileName.getBytes().length,
-				inetAddress, PORT);
+				inetAddress, port);
 		try {
 			datagramSocket.send(sendFileNamePacket);
 		} catch (IOException e) {
@@ -142,7 +153,9 @@ public class Client {
 		int timeout = -1;
 		double corruptchance = -1;
 		int i = 0;
-		while (i < args.length) {
+		InetAddress inetAddress = null;
+		int port = -1;
+		while (i < args.length - 1) {
 			if (args[i].equals("-s")) {
 				try {
 					packetSize = Integer.parseInt(args[i + 1]);
@@ -167,14 +180,18 @@ public class Client {
 					return;
 				}
 			} else {
+				if (inetAddress == null) {
+					inetAddress = InetAddress.getByAddress(args[i].getBytes());
+				} else {
+					port = Integer.parseInt(args[i]);
+				}
 				i++;
 			}
 		}
 		
 		try (DatagramSocket datagramSocket = new DatagramSocket(0)) {
-			InetAddress inetAddress = InetAddress.getLocalHost();
-			Client sender = new Client(datagramSocket, inetAddress, packetSize, timeout, corruptchance);
-			sender.setFileContent(args);
+			Client sender = new Client(datagramSocket, inetAddress, packetSize, timeout, corruptchance, port);
+			sender.setFileContent(args[i]);
 			sender.sendPacket();
 		} catch (SocketException e) {
 			e.printStackTrace();
