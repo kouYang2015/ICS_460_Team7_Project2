@@ -1,6 +1,13 @@
 package edu.metrostate.Packet;
 
-public class Packet {
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+
+public class Packet implements Serializable{
+	
+	private static final long serialVersionUID = 5227846699483507257L;
 	short cksum; //16-bit 2-byte 
 	short len;	//16-bit 2-byte 
 	int ackno;	//32-bit 4-byte 
@@ -38,5 +45,12 @@ public class Packet {
 		this.data = data;
 	}
 	
-	
+	public byte[] turnIntoByteArray (Packet packet) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(bos);
+	    oos.writeObject(packet);
+	    oos.flush();
+	    byte [] dataWithHeader = bos.toByteArray();
+		return dataWithHeader;
+	}
 }
