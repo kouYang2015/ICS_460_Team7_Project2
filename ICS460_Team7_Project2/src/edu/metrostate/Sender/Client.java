@@ -18,7 +18,6 @@ public class Client {
 	private final static int PORT = 12345;
 	private DatagramSocket datagramSocket;
 	private InetAddress inetAddress;
-	private byte[] buffer;
 	private int startOffset = 0;	//offset byte counter. Dynamic
 	private int packetCounter = 1;
 	private File outputFile;	//The file we want to send. May not need
@@ -36,11 +35,6 @@ public class Client {
 		this.inetAddress = inetAddress;
 		this.packetSize = packetSize;
 		
-		if (packetSize == -1) {
-			this.buffer = new byte[DEFAULT_PACKET_SIZE];
-		} else {
-			this.buffer = new byte[packetSize];
-		}
 		if (timeout == -1) {
 			this.timeout = DEFAULT_TIMEOUT;
 		} else {
@@ -59,7 +53,7 @@ public class Client {
 	 */
 	public void setFileContent(String[] args) {
 		try {
-			this.fileContent = Files.readAllBytes(new File(args[0]).toPath());
+			this.fileContent = Files.readAllBytes(new File(args[0]).toPath()); //TODO: CHANGE ARGS[0] TO THE CORRECT TOKEN
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -70,25 +64,20 @@ public class Client {
 	 */
 	public void sendPacket() {
 		//Buffer length decides how many packets we send. If buffer is larger = less #packets. Smaller = more #packets.
-		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + buffer.length); //TODO: DEBUG STATEMENT DELETE AFTER
-		for (int i = 0; i < Math.floor(fileContent.length/buffer.length); i++) {
+		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + packetSize); //TODO: DEBUG STATEMENT DELETE AFTER
+		for (int i = 0; i < Math.floor(fileContent.length/packetSize); i++) {
 			try {
-				Packet dataPacket = new Packet(); //TODO: Implement turning dataPacket into byte[] and into DatagramPacket
-				ByteArrayOutputStream bos = new ByteArrayOutputStream();
-			    ObjectOutputStream oos = new ObjectOutputStream(bos);
-			    oos.writeObject(dataPacket);
-			    oos.flush();
-			    byte [] data = bos.toByteArray();
-				DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArray(dataPacket), startOffset, buffer.length, inetAddress, PORT);
+				Packet dataPacket = createDataPacket(fileContent, startOffset, packetCounter, packetCounter, packetSize); //TODO: Implement turning dataPacket into byte[] and into DatagramPacket
+				DatagramPacket requestPacket = new DatagramPacket(turnIntoByteArray(dataPacket), packetSize, inetAddress, PORT);
 				datagramSocket.send(requestPacket);
-				printToConsole(requestPacket);	
-				startOffset += requestPacket.getLength();
-				packetCounter++;
+				printToConsole(requestPacket);
+				startOffset += dataPacket.getData().length;
 				
 				//Create responsePacket and receive it from server. Not really needed for Project 1 but we will fix this for
 				//Project 2. Need to change it to an AckPacket. TODO: NEED DISCUSSION
-				DatagramPacket responsePacket = new DatagramPacket(buffer, buffer.length);
+				DatagramPacket responsePacket = new DatagramPacket(new byte[packetSize], packetSize);
 				datagramSocket.receive(responsePacket);
+				packetCounter++; //TODO: CHANGE TO SEQNO this is our seqno increment only after we receive a response.
 			} catch (IOException e) {
 				e.printStackTrace();
 				break;
@@ -107,6 +96,21 @@ public class Client {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public Packet createDataPacket(byte[] file, int offset, int ackno, int seqno, int byteSize) {
+		Packet newPacket = new Packet(ackno, seqno, byteSize);
+		//TODO: STILL NEED TO IMPLEMENT WHERE WE SET DATA TO BYTE[] BEGINNING AT OFFSET
+		return newPacket;
+	}
+	
+	public byte[] turnIntoByteArray (Packet packet) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(bos);
+	    oos.writeObject(packet);
+	    oos.flush();
+	    byte [] dataWithHeader = bos.toByteArray();
+		return dataWithHeader;
 	}
 	
 	/**

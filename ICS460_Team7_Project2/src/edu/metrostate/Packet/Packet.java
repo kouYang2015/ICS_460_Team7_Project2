@@ -1,8 +1,5 @@
 package edu.metrostate.Packet;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 public class Packet implements Serializable{
@@ -11,8 +8,14 @@ public class Packet implements Serializable{
 	short cksum; //16-bit 2-byte 
 	short len;	//16-bit 2-byte 
 	int ackno;	//32-bit 4-byte 
-	int seqno ; //32-bit 4-byte Data packet Only 
-	byte[] data = new byte[500]; //0-500 bytes. Data packet only. Variable
+	int seqno; //32-bit 4-byte Data packet Only 
+	byte[] data; //0-500 bytes. Data packet only. Variable
+	
+	public Packet (int ackno, int seqno, int byteSize) {
+		this.len = (short) (byteSize+12);
+		this.ackno = ackno;
+		this.seqno = seqno;
+	}
 	
 	public short getCksum() {
 		return cksum;
@@ -45,12 +48,4 @@ public class Packet implements Serializable{
 		this.data = data;
 	}
 	
-	public byte[] turnIntoByteArray (Packet packet) throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-	    ObjectOutputStream oos = new ObjectOutputStream(bos);
-	    oos.writeObject(packet);
-	    oos.flush();
-	    byte [] dataWithHeader = bos.toByteArray();
-		return dataWithHeader;
-	}
 }
