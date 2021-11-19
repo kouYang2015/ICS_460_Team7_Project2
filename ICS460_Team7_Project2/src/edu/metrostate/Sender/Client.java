@@ -20,7 +20,8 @@ public class Client {
 	private DatagramSocket datagramSocket;
 	private InetAddress inetAddress;
 	private int startOffset = 0;	//offset byte counter. Dynamic
-	private int packetCounter = 1;
+	private int seqnoCounter = 1;
+	private int acknoCounter = 1;
 	private File outputFile;	//The file we want to send. May not need
 	private byte[] fileContent;	//total number of bytes in file
 	private int packetSize; //command line argument for packet size
@@ -82,7 +83,7 @@ public class Client {
 		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + packetSize); //TODO: DEBUG STATEMENT DELETE AFTER
 		for (int i = 0; i < Math.floor(fileContent.length/packetSize); i++) {
 			try {
-				Packet dataPacket = createDataPacket(fileContent, startOffset, packetCounter, packetCounter, packetSize); //TODO: Implement turning dataPacket into byte[] and into DatagramPacket
+				Packet dataPacket = createDataPacket(fileContent, startOffset, acknoCounter, seqnoCounter, packetSize); //TODO: Implement turning dataPacket into byte[] and into DatagramPacket
 				DatagramPacket requestPacket = new DatagramPacket(turnIntoByteArray(dataPacket), packetSize, inetAddress, port);
 				datagramSocket.send(requestPacket);
 				printToConsole(requestPacket);
@@ -92,7 +93,12 @@ public class Client {
 				//Project 2. Need to change it to an AckPacket. TODO: NEED DISCUSSION
 				DatagramPacket responsePacket = new DatagramPacket(new byte[packetSize], packetSize);
 				datagramSocket.receive(responsePacket);
-				packetCounter++; //TODO: CHANGE TO SEQNO this is our seqno increment only after we receive a response.
+				seqnoCounter++; //TODO: CHANGE TO SEQNO this is our seqno increment only after we receive a response.
+//				for (int j = 4; j < 8 ; j++) {
+//					Byte a = responsePacket.getData()[j];
+//					acknoCounter = a.intValue(); //TODO: Check if this is correct
+//				}
+//				acknoCounter = responsePacket.getData()[5] + responsePacket.getData()[6]; //TODO: Check if this is correct
 			} catch (IOException e) {
 				e.printStackTrace();
 				break;
@@ -134,7 +140,7 @@ public class Client {
 	 */
 	public void printToConsole(DatagramPacket request) {
 		System.out.println(String.format("[Packet %d] - [start byte offset]: %d - [end byte offset]: %d", 
-				packetCounter, startOffset, startOffset+request.getLength()-1));
+				seqnoCounter, startOffset, startOffset+request.getLength()-1));
 	}
 	
 	// TODO: IMPLEMENT ON SERVER SIDE send the file name string to server there first. May not need
