@@ -2,6 +2,9 @@ package edu.metrostate.Sender;
 
 import java.io.File;
 import java.nio.file.Files;
+
+import edu.metrostate.Packet.Packet;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -68,6 +71,7 @@ public class Client {
 		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + buffer.length); //TODO: DEBUG STATEMENT DELETE AFTER
 		for (int i = 0; i < Math.floor(fileContent.length/buffer.length); i++) {
 			try {
+				Packet dataPacket = new Packet(); //TODO: Implement turning dataPacket into byte[] and into DatagramPacket
 				DatagramPacket requestPacket = new DatagramPacket(fileContent, startOffset, buffer.length, inetAddress, PORT);
 				datagramSocket.send(requestPacket);
 				printToConsole(requestPacket);	
