@@ -117,7 +117,7 @@ public class Client {
 				break;
 			}
 		}
-		//Send last packet whose length < buffer.length and send flag packet
+		//Send last packet whose length < buffer.length and send flag packet TODO: Might change for loop to while loop so we can just put this in there.
 		int lastPackLen = fileContent.length - startOffset;
 		Packet lastPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
 		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, port);
