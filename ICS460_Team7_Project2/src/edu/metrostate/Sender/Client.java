@@ -2,6 +2,7 @@ package edu.metrostate.Sender;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 
 import edu.metrostate.Packet.Packet;
@@ -83,7 +84,7 @@ public class Client {
 		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + packetSize); //TODO: DEBUG STATEMENT DELETE AFTER
 		for (int i = 0; i < Math.floor(fileContent.length/packetSize); i++) {
 			try {
-				Packet dataPacket = createDataPacket(fileContent, startOffset, acknoCounter, seqnoCounter, packetSize); //TODO: Implement turning dataPacket into byte[] and into DatagramPacket
+				Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize); //TODO: Implement turning dataPacket into byte[] and into DatagramPacket
 				DatagramPacket requestPacket = new DatagramPacket(turnIntoByteArray(dataPacket), packetSize, inetAddress, port);
 				datagramSocket.send(requestPacket);
 				printToConsole(requestPacket);
@@ -93,12 +94,24 @@ public class Client {
 				//Project 2. Need to change it to an AckPacket. TODO: NEED DISCUSSION
 				DatagramPacket responsePacket = new DatagramPacket(new byte[packetSize], packetSize);
 				datagramSocket.receive(responsePacket);
-				seqnoCounter++; //TODO: CHANGE TO SEQNO this is our seqno increment only after we receive a response.
-//				for (int j = 4; j < 8 ; j++) {
-//					Byte a = responsePacket.getData()[j];
-//					acknoCounter = a.intValue(); //TODO: Check if this is correct
+				if (checkAckPacket(responsePacket)) {
+					seqnoCounter++;
+				}
+				//TODO: Turn this into a method? Check the checksum of AckPacket and len == 8. If good, then check ackNo from packet against seqnoCounter.
+//				ByteBuffer bb = ByteBuffer.wrap(responsePacket.getData());
+//				byte[] checksumByte = new byte[2];
+//				byte[] lenByte = new byte[2];
+//				bb.get(checksumByte, 0, checksumByte.length);	//Gets the first bit then move buffer location to 2. (beginning of len)
+//				bb.get(lenByte, 0, lenByte.length);	//Gets the 3rd,4th bit then move buffer location to 4. (beginning of ackNo)
+//				if (ByteBuffer.wrap(checksumByte).getInt() == 0 && ByteBuffer.wrap(lenByte).getInt() == 8) {
+//					//Get ackNo from AckPacket. Check against seqNo. if Equal, increment by one both seqnoCounter and acknoCounter
+//					byte[] acknoByte = new byte[4];
+//					bb.get(acknoByte, 0, acknoByte.length);
+//					if(ByteBuffer.wrap(acknoByte).getInt() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
+//						seqnoCounter++;
+//						acknoCounter = ByteBuffer.wrap(acknoByte).getInt() + 1;
+//					}
 //				}
-//				acknoCounter = responsePacket.getData()[5] + responsePacket.getData()[6]; //TODO: Check if this is correct
 			} catch (IOException e) {
 				e.printStackTrace();
 				break;
@@ -106,17 +119,37 @@ public class Client {
 		}
 		//Send last packet whose length < buffer.length and send flag packet
 		int lastPackLen = fileContent.length - startOffset;
-		DatagramPacket lastDataPacket = new DatagramPacket(fileContent, startOffset, lastPackLen, inetAddress, port);
-		printToConsole(lastDataPacket);
-		startOffset += lastPackLen;
-		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, port);	//TODO: check if we can send 0 length
+		Packet lastPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
+		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, port);
 		try {
-			datagramSocket.send(lastDataPacket);		//Send last packet whose length < buffer.length
+			DatagramPacket lastDGPacket = new DatagramPacket(turnIntoByteArray(lastPacket), lastPackLen, inetAddress, port);
+			printToConsole(lastDGPacket);
+			datagramSocket.send(lastDGPacket);		//Send last packet whose length < buffer.length
+			startOffset += lastPackLen;
 			System.out.println("Sending flag: " + flagPacket.getData() + " " + flagPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 			datagramSocket.send(flagPacket);	//Send an empty packet to denote no data left to send. (Our flag)
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
+	}
+	
+	private boolean checkAckPacket(DatagramPacket ackPacket) {
+		//TODO: Turn this into a method? Check the checksum of AckPacket and len == 8. If good, then check ackNo from packet against seqnoCounter.
+		ByteBuffer bb = ByteBuffer.wrap(ackPacket.getData());
+		byte[] checksumByte = new byte[2];
+		byte[] lenByte = new byte[2];
+		bb.get(checksumByte, 0, checksumByte.length);	//Gets the first bit then move buffer location to 2. (beginning of len)
+		bb.get(lenByte, 0, lenByte.length);	//Gets the 3rd,4th bit then move buffer location to 4. (beginning of ackNo)
+		if (ByteBuffer.wrap(checksumByte).getInt() == 0 && ByteBuffer.wrap(lenByte).getInt() == 8) {
+			//Get ackNo from AckPacket. Check against seqNo. if Equal, increment by one both seqnoCounter and acknoCounter
+			byte[] acknoByte = new byte[4];
+			bb.get(acknoByte, 0, acknoByte.length);
+			if(ByteBuffer.wrap(acknoByte).getInt() == seqnoCounter && ByteBuffer.wrap(acknoByte).getInt() == acknoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	public Packet createDataPacket(byte[] file, int offset, int ackno, int seqno, int byteSize) {
