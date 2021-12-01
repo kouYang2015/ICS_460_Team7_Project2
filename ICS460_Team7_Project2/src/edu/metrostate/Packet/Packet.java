@@ -37,8 +37,8 @@ public class Packet implements Serializable{
 	public short getCksum() {
 		return cksum;
 	}
-	public void setCksum(short cksum) {
-		this.cksum = cksum;
+	public void setCksum() {
+		this.cksum = (short) (this.cksum == 0 ? 1 : 0);
 	}
 	public short getLen() {
 		return len;
