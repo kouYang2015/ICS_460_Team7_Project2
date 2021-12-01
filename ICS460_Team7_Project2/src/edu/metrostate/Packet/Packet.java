@@ -4,17 +4,34 @@ import java.io.Serializable;
 
 public class Packet implements Serializable{
 	
-	private static final long serialVersionUID = 5227846699483507257L;
+	private static final long serialVersionUID = 6708655364256248631L;
 	short cksum; //16-bit 2-byte 
 	short len;	//16-bit 2-byte 
 	int ackno;	//32-bit 4-byte 
 	int seqno; //32-bit 4-byte Data packet Only 
 	byte[] data; //0-500 bytes. Data packet only. Variable
 	
-	public Packet (int ackno, int seqno, int byteSize) {
-		this.len = (short) (byteSize+12);
+	/**
+	 * Used by Client to create DataPackets. len determined by byte[] data size + 12.
+	 * @param ackno
+	 * @param seqno
+	 * @param byteSize
+	 */
+	public Packet (int ackno, int seqno, byte[] data) {
+		this.cksum = 0; //default value.
 		this.ackno = ackno;
 		this.seqno = seqno;
+		this.data = data;
+		this.len = (short) (data.length+12);
+	}
+	
+	/**
+	 * Used by Server to create AckPackets. Contains only cksum, len, and ackno.
+	 */
+	public Packet (int ackno) {
+		this.cksum = 0; //default value.
+		this.len = 8; //default value.
+		this.ackno = ackno;
 	}
 	
 	public short getCksum() {
@@ -46,6 +63,18 @@ public class Packet implements Serializable{
 	}
 	public void setData(byte[] data) {
 		this.data = data;
+	}
+
+	public int getStatus(double corruptChance) {
+		// TODO: Use this to corrupt packet information.
+		//1: Packet's checksum got corrupted.
+		int statusNum = 0;
+		//TODO: make rand num generator with chance of getting 1 or 2 equal to -d from cmd line.
+		switch(statusNum) {
+			case(1): return 1;	//Packet will get dropped
+			case(2): return 2; 	//Packet got corrupted. Checksum changed to 1 or len changed (len now > 512 for DataPacket or len now > 8 for AckPacket
+			default: return 0;	//No drop/corruption. Packet will be sent successfully
+		}
 	}
 	
 }
