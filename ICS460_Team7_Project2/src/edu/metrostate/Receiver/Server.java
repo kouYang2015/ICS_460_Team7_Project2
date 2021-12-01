@@ -1,11 +1,13 @@
 package edu.metrostate.Receiver;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.Base64;
 
 public class Server {
 	private final static int PORT = 12345;
@@ -45,8 +47,23 @@ public class Server {
 		}
 	}
 	
-	public void createFile(String[] args) {
-		fileReceived = new File(args[0]);	//Sets the new file to whatever the user passes through (image.jpg)
+	/**
+	 * Gets the file name and then creates a new file with that name.
+	 */
+	public void createFile() {
+		DatagramPacket fileNamePacket = new DatagramPacket(buffer, buffer.length);
+		try {
+			datagramSocket.receive(fileNamePacket);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//byte[] to base64 string
+		String encodedB64FileName = Base64.getEncoder().encodeToString(fileNamePacket.getData());
+        // base64 string to byte[]
+        byte[] decodeFileName = Base64.getDecoder().decode(encodedB64FileName);
+        String safeFileName = new String(decodeFileName); //Build string of decoded.
+		fileReceived = new File(safeFileName);	//Sets the new file to String of our decoded byte[]
 	}
 	
 	/**
@@ -70,7 +87,7 @@ public class Server {
 	public static void main(String[] args) {
 		try (DatagramSocket datagramSocket = new DatagramSocket(PORT)) {
 			Server receiver = new Server(datagramSocket);
-			receiver.createFile(args);
+			receiver.createFile();
 			receiver.receivePacket();
 		} catch (SocketException e) {
 			e.printStackTrace();
