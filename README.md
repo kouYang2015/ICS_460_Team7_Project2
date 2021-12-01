@@ -15,10 +15,10 @@ WindowFrames (Both Client/Server)
 Packets
   - [ ] implement ackPackets (On server side we send only chksum, len, and ackno with total size of 8)
   - [X] class created. getters/setters for all properties
-  - [ ] chksum is default to 0 (in constructor or?)
+  - [X] chksum is default to 0 (in constructor or?)
   - [ ] setChksum (make it just flip our chksum instead of taking in a parameter? chksum = chksum == 0 ? 1 : 0;
-  - [ ] Check if our constructor for the client side is complete.
-  - [ ] Create a constructor for the server side to use to create a "ackpacket" Takes in only chksum, len, ackno (chksum default to 0, len always 8, ackno = class variable ackno from Server class)
+  - [X] Check if our constructor for the client side is complete.
+  - [X] Create a constructor for the server side to use to create a "ackpacket" Takes in only chksum, len, ackno (chksum default to 0, len always 8, ackno = class variable ackno from Server class)
 
 Client Side
   - [ ] Implement Data Corruption
@@ -31,7 +31,7 @@ Client Side
   - [ ] Implement all print statements
 
 Server Side
-  - [ ] Receive file name from client and create a new file with that name
+  - [X] Receive file name from client and create a new file with that name
   - [ ] Implement Data Corruption
   - [ ] Implement Data drops
   - [ ] implement stop-and-wait feature (TBD on ServerSide - Should server always be listening? Does/Will Server keep sending ackPackets while waiting?)
