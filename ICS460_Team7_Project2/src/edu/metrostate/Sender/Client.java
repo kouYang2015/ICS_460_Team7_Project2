@@ -16,7 +16,15 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-
+/**
+ * This class represent a Client object that is used to send a DatagramPacket object containing a serialized Packet object to the
+ * Server.java in order to send a file. It implements the stop-and-wait protocol over UDP to ensure reliability.
+ * 
+ * @author Kou Yang & Seth Prokop
+ * Date: 12/2/2021
+ * ICS 460 - Damodar Chetty
+ *
+ */
 public class Client {
 	private static final int DEFAULT_PORT = 12345;
 	private static final int DEFAULT_PACKET_SIZE = 400;

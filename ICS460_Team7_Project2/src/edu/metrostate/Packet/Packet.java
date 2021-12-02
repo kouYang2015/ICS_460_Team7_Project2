@@ -2,12 +2,12 @@ package edu.metrostate.Packet;
 
 import java.io.Serializable;
 /**
+ * This class represent a Packet object that is used to represent a DataPacket and an AckPacket. It allows the users to corrupt
+ * parts of its properties.
  * 
  * @author Kou Yang & Seth Prokop
  * Date: 12/2/2021
  * ICS 460 - Damodar Chetty
- * This class represent a Packet object that is used to represent a DataPacket and an AckPacket. It allows the users to corrupt
- * parts of its properties.
  *
  */
 public class Packet implements Serializable{
