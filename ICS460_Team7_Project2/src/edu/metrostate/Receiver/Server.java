@@ -2,7 +2,6 @@ package edu.metrostate.Receiver;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -11,7 +10,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.util.Base64;
 
 import edu.metrostate.Packet.Packet;
@@ -49,7 +47,6 @@ public class Server {
 			try {
 				//Receive request and create a DatagramPacket. Then write it to file.
 				DatagramPacket requestPacket = new DatagramPacket(buffer, buffer.length);
-				//TODO: ADD AN IF HERE TO BREAK OUT OF LOOP IF BUFFER LENTGTH IS 0
 				datagramSocket.receive(requestPacket);
 				if (requestPacket.getLength() == 0) {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
@@ -66,6 +63,7 @@ public class Server {
 //				System.out.println(deserializeByteArray(requestPacket).getData().length);
 				if (checkSum == 1 || newPacket.getLen() != newPacket.getData().length + 12) { //if requestPacket is corrupted
 					printWhatWasReceived(startTime, 2);
+					System.out.println("Bad packet");//TODO: DEBUG STATEMENT DELETE AFTER
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
 					printWhatWasReceived(startTime, 1);
 					Packet dataPacket = createAckPacket(ackNo);
