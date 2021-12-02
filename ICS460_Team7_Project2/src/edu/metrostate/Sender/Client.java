@@ -98,9 +98,10 @@ public class Client {
 				packetSize = fileContent.length - startOffset;
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
-			System.out.println(dataPacket.turnIntoByteArray().length);
-			DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArray(), packetSize, inetAddress,
+			System.out.println(dataPacket.turnIntoByteArrayClient().length);
+			DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArrayClient(), dataPacket.getLen(), inetAddress,
 					port);
+			System.out.println(requestPacket.getLength());
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
 
 /*			switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
@@ -112,7 +113,7 @@ public class Client {
 			long startTime = System.currentTimeMillis();
 			datagramSocket.send(requestPacket);
 			printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
-			startOffset += dataPacket.getData().length;
+			startOffset += packetSize;
 			try {
 				datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
 				DatagramPacket responsePacket = new DatagramPacket(new byte[packetSize], packetSize);

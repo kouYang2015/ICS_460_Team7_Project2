@@ -43,10 +43,25 @@ public class Packet implements Serializable{
 	 * @return
 	 * @throws IOException
 	 */
-	public byte[] turnIntoByteArray() throws IOException {
+	public byte[] turnIntoByteArrayClient() throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 	    ObjectOutputStream oos = new ObjectOutputStream(bos);
-	    oos.writeObject(this);
+	    oos.writeShort(cksum);
+	    oos.writeShort(len);
+	    oos.writeInt(ackno);
+	    oos.writeInt(seqno);
+	    oos.write(data);
+	    oos.flush();
+	    byte [] dataWithHeader = bos.toByteArray();
+		return dataWithHeader;
+	}
+	
+	public byte[] turnIntoByteArrayServer() throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(bos);
+	    oos.writeShort(cksum);
+	    oos.writeShort(len);
+	    oos.writeInt(ackno);
 	    oos.flush();
 	    byte [] dataWithHeader = bos.toByteArray();
 		return dataWithHeader;

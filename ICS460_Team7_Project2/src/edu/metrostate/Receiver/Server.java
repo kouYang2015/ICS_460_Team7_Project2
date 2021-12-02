@@ -1,9 +1,11 @@
 package edu.metrostate.Receiver;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -38,7 +40,7 @@ public class Server {
 		System.out.println(this.port);
 	}
 	
-	public void receivePacket() {
+	public void receivePacket() throws ClassNotFoundException {
 		byte[] checkSumByte = new byte[2];
 		byte[] lenByte = new byte[2];
 		byte[] sentAckNo = new byte[4];
@@ -58,12 +60,12 @@ public class Server {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 					break;
 				}
-				ByteBuffer bb = ByteBuffer.wrap(requestPacket.getData());
+/*				ByteBuffer bb = ByteBuffer.wrap(requestPacket.getData());
                 bb.get(checkSumByte, 0, checkSumByte.length); //grab checksum bytes
                 bb.get(lenByte, 0, lenByte.length); //grab length bytes
                 bb.get(sentAckNo, 0, sentAckNo.length); //grab ackNo bytes
                 bb.get(sentSeqNo, 0, sentSeqNo.length); //grab seqNo bytes
-                int convertLen = lenByte[0];
+                int convertLen = lenByte[1];
                 System.out.println(convertLen);
                 dataReceived = new byte[convertLen - 12];
 				System.out.println(dataReceived.length);
@@ -71,6 +73,10 @@ public class Server {
 				
 				checkSum = ByteBuffer.wrap(checkSumByte).getInt();
 				sentAckNoInt = ByteBuffer.wrap(sentAckNo).getInt();
+*/				
+				Packet newPacket = deserializeByteArray(requestPacket);
+				checkSum = newPacket.getCksum();
+				sentAckNoInt = newPacket.getAckno();
 				
 				if (checkSum == 1) { //if requestPacket is corrupted
 					
@@ -79,10 +85,10 @@ public class Server {
 				} else { //if it is sent correctly
 					System.out.println("Sending response packet");
 					Packet dataPacket = new Packet(ackNo);
-					writeToFile(fileReceived, requestPacket);
+					writeToFile(fileReceived, newPacket.getData());
 					startOffset += requestPacket.getLength();
 					ackNo++;
-					DatagramPacket responsePacket = new DatagramPacket(dataPacket.turnIntoByteArray(), dataPacket.getLen(), inetAddress, port);
+					DatagramPacket responsePacket = new DatagramPacket(dataPacket.turnIntoByteArrayServer(), dataPacket.getLen(), inetAddress, port);
 					long startTime = System.currentTimeMillis();
 					datagramSocket.send(responsePacket);
 					System.out.println("Sent response packet");
@@ -114,25 +120,32 @@ public class Server {
 		fileReceived = new File(safeFileName);	//Sets the new file to String of our decoded byte[]
 	}
 	
+	public Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
+        ObjectInputStream ois = new ObjectInputStream(bis);
+        Packet deserializedPacket = (Packet) ois.readObject();
+        return deserializedPacket;
+    }
+	
 	/**
 	 * Method used to concatenate new requestPacket byte data to the previous requestPacket. Also prints to console information
 	 * about packet#, start offset, end offset.
 	 * @param file
 	 * @param request
 	 */
-	public void writeToFile(File file, DatagramPacket request) {
+	public void writeToFile(File file, byte[] data) {
 		System.out.println(String.format("[Packet%d] - [start byte offset]: %d - [end byte offset]: %d", 
-				ackNo, startOffset, startOffset+request.getLength()-1));
+				ackNo, startOffset, startOffset+data.length-1));
 		try {
 			FileOutputStream writer = new FileOutputStream(file, true);
-			writer.write(request.getData(), 0, request.getLength());
+			writer.write(data, 0, data.length);
 			writer.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		double corruptchance = -1;
 		InetAddress inetAddress = null;
 		int port = -1;
