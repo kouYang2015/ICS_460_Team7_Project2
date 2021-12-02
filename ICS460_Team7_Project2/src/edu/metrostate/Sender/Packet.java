@@ -1,4 +1,4 @@
-package edu.metrostate.Packet;
+package edu.metrostate.Sender;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

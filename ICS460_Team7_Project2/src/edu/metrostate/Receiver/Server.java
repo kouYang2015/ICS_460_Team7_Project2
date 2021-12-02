@@ -6,22 +6,43 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.util.Base64;
 
 public class Server {
-	private final static int PORT = 12345;
+	private static final int DEFAULT_PORT = 12345;
+	private static final double DEFAULT_CORRUPTCHANCE = 0;
+	private InetAddress inetAddress;
+	private int port;
 	private DatagramSocket datagramSocket;
 	private byte[] buffer = new byte[1024];
 	private int startOffset = 0;
-	private int packetCounter = 1;
+	private int ackNo = 1;
 	private File fileReceived;
+	private double corruptChance;
 	
-	public Server(DatagramSocket datagramSocket){
-		this.datagramSocket = datagramSocket;
+	public Server(double corruptchance, InetAddress inetAddress, int port) throws SocketException {
+		super();
+		try {
+			this.inetAddress = (inetAddress == null ? inetAddress = InetAddress.getLocalHost() : inetAddress);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		this.corruptChance = (corruptchance == -1 ? DEFAULT_CORRUPTCHANCE : corruptchance);
+		this.port = (port == -1 ? DEFAULT_PORT : port);
+		this.datagramSocket = new DatagramSocket(this.port);
 	}
 	
 	public void receivePacket() {
+		byte[] checkSumByte = new byte[2];
+		byte[] lenByte = new byte[4];
+		byte[] sentAckNo = new byte[4];
+		byte[] sentSeqNo = new byte[4];
+		int checkSum;
+		int sentAckNoInt;
 		while(true) {
 			try {
 				//Receive request and create a DatagramPacket. Then write it to file.
@@ -32,14 +53,30 @@ public class Server {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 					break;
 				}
-				writeToFile(fileReceived, requestPacket);
-				startOffset += requestPacket.getLength();
-				packetCounter++;
+				ByteBuffer bb = ByteBuffer.wrap(requestPacket.getData());
+				bb.get(checkSumByte, 0, checkSumByte.length); //grab checksum bytes
+				bb.get(lenByte, 0, lenByte.length); //grab length bytes
+				bb.get(sentAckNo, 0, sentAckNo.length); //grab ackNo bytes
+				bb.get(sentSeqNo, 0, sentSeqNo.length); //grab seqNo bytes
+				bb.get(buffer, 0, ByteBuffer.wrap(lenByte).getInt() - 12); //grab the rest of the data, which is len -12 in length
 				
-				//Create responsePacket and send back to client.
-				DatagramPacket responsePacket = new DatagramPacket(requestPacket.getData(), requestPacket.getLength(), 
-						requestPacket.getAddress(), requestPacket.getPort());
-				datagramSocket.send(responsePacket);
+				checkSum = ByteBuffer.wrap(checkSumByte).getInt();
+				sentAckNoInt = ByteBuffer.wrap(sentAckNo).getInt();
+				
+				if (checkSum == 1) { //if requestPacket is corrupted
+					
+				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
+					
+				} else { //if it is sent correctly
+					Packet dataPacket = new Packet(ackNo);
+					writeToFile(fileReceived, requestPacket);
+					startOffset += requestPacket.getLength();
+					ackNo++;
+					DatagramPacket responsePacket = new DatagramPacket(dataPacket.turnIntoByteArray(), dataPacket.getLen(), inetAddress, port);
+					long startTime = System.currentTimeMillis();
+					datagramSocket.send(responsePacket);
+				}
+				
 			} catch (IOException e) {
 				e.printStackTrace();
 				break;
@@ -74,7 +111,7 @@ public class Server {
 	 */
 	public void writeToFile(File file, DatagramPacket request) {
 		System.out.println(String.format("[Packet%d] - [start byte offset]: %d - [end byte offset]: %d", 
-				packetCounter, startOffset, startOffset+request.getLength()-1));
+				ackNo, startOffset, startOffset+request.getLength()-1));
 		try {
 			FileOutputStream writer = new FileOutputStream(file, true);
 			writer.write(request.getData(), 0, request.getLength());
@@ -84,14 +121,32 @@ public class Server {
 		}
 	}
 	
-	public static void main(String[] args) {
-		try (DatagramSocket datagramSocket = new DatagramSocket(PORT)) {
-			Server receiver = new Server(datagramSocket);
-			receiver.createFile();
-			receiver.receivePacket();
-		} catch (SocketException e) {
-			e.printStackTrace();
+	public static void main(String[] args) throws IOException {
+		double corruptchance = -1;
+		InetAddress inetAddress = null;
+		int port = -1;
+		int i = 0;
+		while (i < args.length - 1) {
+			if (args[i].equals("-d")) {
+				try {
+					corruptchance = Integer.parseInt(args[i + 1]);
+				} catch (NumberFormatException e) {
+					System.out.println("Invalid packet corruption chance specified.");
+					return;
+				}
+			} else {
+				if (inetAddress == null) {
+					inetAddress = InetAddress.getByAddress(args[i].getBytes());
+				} else {
+					port = Integer.parseInt(args[i]);
+				}
+				i++;
+			}
 		}
+		
+		Server receiver = new Server(corruptchance, inetAddress, port);
+		receiver.createFile();
+		receiver.receivePacket();
 	}
 	
 }

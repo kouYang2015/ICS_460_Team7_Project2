@@ -4,9 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
-
-import edu.metrostate.Packet.Packet;
-
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
@@ -18,7 +15,7 @@ import java.net.UnknownHostException;
 public class Client {
 	private static final int DEFAULT_PORT = 12345;
 	private static final int DEFAULT_PACKET_SIZE = 200;
-	private static final int DEFAULT_TIMEOUT = 200;
+	private static final int DEFAULT_TIMEOUT = 2000;
 	private static final double DEFAULT_CORRUPTCHANCE = 0;
 	private int port;
 	private int packetSize; //command line argument for packet size
@@ -35,14 +32,14 @@ public class Client {
 		super();
 		try {
 			this.inetAddress = (inetAddress == null ? inetAddress = InetAddress.getLocalHost() : inetAddress);
-		} catch (UnknownHostException e1) {
-			System.out.println("UnknownHost.");
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
 		}
 		this.packetSize = (packetSize == -1 ? DEFAULT_PACKET_SIZE : packetSize > 500 ? 500 : packetSize);
 		this.timeout = (timeout == -1 ? DEFAULT_TIMEOUT : timeout);
 		this.corruptChance = (corruptchance == -1 ? DEFAULT_CORRUPTCHANCE : corruptchance);
 		this.port = (port == -1 ? DEFAULT_PORT : port);
-		this.datagramSocket = new DatagramSocket(port);
+		this.datagramSocket = new DatagramSocket(0);
 //		if (packetSize == -1) {
 //			packetSize = DEFAULT_PACKET_SIZE;
 //		} else if (packetSize > 500) {
@@ -99,15 +96,15 @@ public class Client {
 				packetSize = fileContent.length - startOffset;
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
-			DatagramPacket requestPacket = new DatagramPacket(turnIntoByteArray(dataPacket), packetSize, inetAddress,
+			DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArray(), packetSize, inetAddress,
 					port);
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
 
-			switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
+/*			switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
 			case (1): // TODO: Do nothing. Packet got dropped. Wait out timer and Resend same packet.
 			case (2): // TODO: Send packet but it got corrupted. Use method printCorruptStatus
 			default: // TODO: Send packet with no corruption.
-			}
+			}*/
 
 			long startTime = System.currentTimeMillis();
 			datagramSocket.send(requestPacket);
@@ -190,21 +187,6 @@ public class Client {
 		bb.get(data, 0, data.length);
 		Packet newPacket = new Packet(ackno, seqno, data);
 		return newPacket;
-	}
-	
-	/**
-	 * Turns the Packet object into a byte[].
-	 * @param packet
-	 * @return
-	 * @throws IOException
-	 */
-	private byte[] turnIntoByteArray (Packet packet) throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-	    ObjectOutputStream oos = new ObjectOutputStream(bos);
-	    oos.writeObject(packet);
-	    oos.flush();
-	    byte [] dataWithHeader = bos.toByteArray();
-		return dataWithHeader;
 	}
 	
 	/**
