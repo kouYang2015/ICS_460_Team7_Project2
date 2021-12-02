@@ -4,7 +4,7 @@
 
 GUI/CMD Line
   - [X] -s option completed (fully implemented)
-  - [ ] -t grabbed from command line but need to be implemented still 
+  - [ ] -t grabbed from command line and implemented but needs checking (sendPacket() method. datagramSocket.setSoTimout(timeout))
   - [ ] -d grabbed from command line but need to be implemented still
   - [X] inetAddress fully implemented (grabbed from cmd and variable is used in client)
   - [X] port fully implemented (grabbed from cmd and variable is used in client)
@@ -16,13 +16,14 @@ Packets
   - [ ] implement ackPackets (On server side we send only chksum, len, and ackno with total size of 8)
   - [X] class created. getters/setters for all properties
   - [X] chksum is default to 0 (in constructor or?)
-  - [ ] setChksum (make it just flip our chksum instead of taking in a parameter? chksum = chksum == 0 ? 1 : 0;
+  - [X] setChksum (make it just flip our chksum instead of taking in a parameter? chksum = chksum == 0 ? 1 : 0;
   - [X] Check if our constructor for the client side is complete.
   - [X] Create a constructor for the server side to use to create a "ackpacket" Takes in only chksum, len, ackno (chksum default to 0, len always 8, ackno = class variable ackno from Server class)
+  - [ ] Implement corruption so getStatus can return correct status.
 
 Client Side
-  - [ ] Implement Data Corruption
-  - [ ] Implement Data drops
+  - [ ] Implement Data Corruption called from Packet class
+  - [ ] Implement Data drops called from Packet class
   - [ ] implement stop-and-wait feature (force client to stop sending packet - probably change conditional in the while loop) Not sure if we need to have the Server stop and wait too
   - [X] Method used to create a Packet given a file byte[], offset, seqno, ackno, and packet size
   - [X] Method used to turn Packet created into a byte[] with chksum, len, ackno, seqno, data. Using ByteArrayOutputStream, ObjectOutputStream (https://www.tutorialspoint.com/How-to-convert-an-object-to-byte-array-in-java)
@@ -36,7 +37,7 @@ Server Side
   - [ ] Implement Data drops
   - [ ] implement stop-and-wait feature (TBD on ServerSide - Should server always be listening? Does/Will Server keep sending ackPackets while waiting?)
   Checks
-  - [ ] check the chksum for 0
+  - [ ] check the chksum for 0 (use ByteBuffer)
   - [ ] check the len and only append to outputfile the size of len from the received datagrampacket - (minus) the first 12 bytes (the header)
   - [ ] check if ackno and seqno received are the same? If not, this means our ack packet did not successfully go from server to client. 
   When Checks are good
