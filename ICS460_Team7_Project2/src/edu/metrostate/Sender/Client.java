@@ -102,7 +102,8 @@ public class Client {
     }
 	
 	/**
-	 * Method used to send a requestPacket from Client to Server.
+	 * Method used to send a requestPacket from Client to Server. Use helper methods to create DataPackets, seriliaze them into
+	 * byte[] to be sent in a DatagramPacket via a DatagramSocket.
 	 * @throws IOException 
 	 * @throws ClassNotFoundException 
 	 * @throws SocketException
