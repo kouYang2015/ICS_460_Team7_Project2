@@ -3,7 +3,6 @@ package edu.metrostate.Sender;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 
 import edu.metrostate.Packet.Packet;
