@@ -68,21 +68,6 @@ public class Packet implements Serializable{
 	public void setData(byte[] data) {
 		this.data = data;
 	}
-	
-	/**
-	 * Turns the Packet object into a byte[].
-	 * @param packet
-	 * @return
-	 * @throws IOException
-	 */
-	public byte[] toByteArray() throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-	    ObjectOutputStream oos = new ObjectOutputStream(bos);
-	    oos.writeObject(this);
-	    oos.flush();
-	    byte [] dataWithHeader = bos.toByteArray();
-		return dataWithHeader;
-	}
 
 	/**
 	 * 

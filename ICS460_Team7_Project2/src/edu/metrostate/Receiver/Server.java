@@ -146,7 +146,7 @@ public class Server {
 
 	/**
 	 * Helper method. Streams a Packet object serializes it into a byte[] and returns it.
-	 * @param packet
+	 * @param packet the Packet object to be serialized.
 	 * @return A byte[] representing a Packet object with it's serialized number.
 	 * @throws IOException Thrown when we stream Packet object.
 	 */
