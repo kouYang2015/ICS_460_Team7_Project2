@@ -85,17 +85,31 @@ public class Packet implements Serializable{
 	public int getStatus(double corruptChance) {
 		// TODO: Use this to corrupt packet information.
 		//1: Packet's checksum got corrupted.
-		int statusNum = 0;
+		int statusNum = corrupt(corruptChance);
 		//TODO: make rand num generator with chance of getting 1 or 2 equal to -d from cmd line.
 		switch(statusNum) {
 			case(1): return 1;	//Packet will get dropped
-			case(2): 
+			case(2): if (data == null) {
+				data = new byte[2];
+			} else {
 				byte[] b = new byte[this.data.length+2];
 				b[this.data.length] = (byte) this.len;
 				b[this.data.length+1] = (byte) this.len;
-				return 2; 	//Packet got corrupted. Checksum changed to 1 or len changed (len now > 512 for DataPacket or len now > 8 for AckPacket
+			}
+					return 2; 	//Packet got corrupted. Checksum changed to 1 or len changed (len now > 512 for DataPacket or len now > 8 for AckPacket
 			default: return 0;	//No drop/corruption. Packet will be sent successfully
 		}
 	}
 	
+	public int corrupt(double corruptChance) {
+		if (Math.random() < corruptChance) {
+			if (Math.random() < .5) {
+				return 1;
+			} else {
+				return 2;
+			}
+		} else {
+			return 0;
+		}
+	}
 }
