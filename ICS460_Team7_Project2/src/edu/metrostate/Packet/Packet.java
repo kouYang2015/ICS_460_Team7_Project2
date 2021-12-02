@@ -3,7 +3,11 @@ package edu.metrostate.Packet;
 import java.io.Serializable;
 /**
  * 
- * @author Kou
+ * @author Kou Yang & Seth Prokop
+ * Date: 12/2/2021
+ * ICS 460 - Damodar Chetty
+ * This class represent a Packet object that is used to represent a DataPacket and an AckPacket. It allows the users to corrupt
+ * parts of its properties.
  *
  */
 public class Packet implements Serializable{
@@ -49,20 +53,11 @@ public class Packet implements Serializable{
 	public short getLen() {
 		return len;
 	}
-	public void setLen(short len) {
-		this.len = len;
-	}
 	public int getAckno() {
 		return ackno;
 	}
-	public void setAckno(int ackno) {
-		this.ackno = ackno;
-	}
 	public int getSeqno() {
 		return seqno;
-	}
-	public void setSeqno(int seqno) {
-		this.seqno = seqno;
 	}
 	public byte[] getData() {
 		return data;
