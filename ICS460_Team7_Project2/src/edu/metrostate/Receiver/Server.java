@@ -63,12 +63,11 @@ public class Server {
 //				System.out.println(deserializeByteArray(requestPacket).getData().length);
 				if (checkSum == 1 || newPacket.getLen() != newPacket.getData().length + 12) { //if requestPacket is corrupted
 					printWhatWasReceived(startTime, 2);
-					System.out.println("Bad packet");//TODO: DEBUG STATEMENT DELETE AFTER
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
 					printWhatWasReceived(startTime, 1);
 					Packet dataPacket = createAckPacket(ackNo);
+					
 					int statusIdentifier = dataPacket.getStatus(corruptChance);
-
 					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
 					case (1): printResponse(startTime, 1); continue;
 					case (2): printResponse(startTime, 2);
@@ -158,30 +157,27 @@ public class Server {
 		}
 	}
 	
-	private int corrupt() {
-		if (Math.random() < corruptChance) {
-			if (Math.random() < .5) {
-				return 1;
-			} else {
-				return 2;
-			}
-		} else {
-			return 0;
-		}
-	}
-	
-	private void printWhatWasReceived(long startTimer, int receivedCode) {
+	private synchronized void printWhatWasReceived(long startTimer, int receivedCode) {
 		String firstCode, errorCode;
 		long timeReceived = System.currentTimeMillis() - startTimer;
-		switch (receivedCode) {
-		case (1): firstCode = "DUPL"; errorCode = "!Seq";
-		case (2): firstCode = "RECV"; errorCode = "CRPT";
-		default: firstCode = "RECV"; errorCode = "RECV";
+		System.out.println(receivedCode);
+		if (receivedCode == 1) {
+			firstCode = "DUPL";
+			errorCode = "!Seq";
 		}
-		System.out.println(firstCode + " " + timeReceived + " " + ackNo + " " + errorCode);
+		else if (receivedCode == 2) {
+			firstCode = "RECV";
+			errorCode = "CRPT";
+		}
+		else {
+			firstCode = "RECV";
+			errorCode = "RECV";
+		}
+		System.out.println(String.format("%s %d %d %s", 
+				firstCode, timeReceived, ackNo, errorCode));
 	}
 	
-	private void printResponse(long startTimer, int sentCode) {
+	private synchronized void printResponse(long startTimer, int sentCode) {
 		String errorCode;
 		long timeSent = System.currentTimeMillis() - startTimer;
 		switch (sentCode) {

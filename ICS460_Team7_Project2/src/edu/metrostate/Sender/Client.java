@@ -110,7 +110,7 @@ public class Client {
 				requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), 
 						turnIntoByteArrayClient(dataPacket).length, inetAddress, port);
 				datagramSocket.send(requestPacket);
-				printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
+				printSendStatus(statusIdentifier, startTime, timedOut);
 			}
 			timedOut = receiveAckPacket();
 		}
@@ -200,7 +200,7 @@ public class Client {
 	 * @param request: the DatagramPacket whose information we are printing.
 	 * @param num: 
 	 */
-	private void printSendStatus(DatagramPacket request, int statusN, long timerStartTime, boolean timedOutStatus) {
+	private void printSendStatus(int statusN, long timerStartTime, boolean timedOutStatus) {
 		String packetStatus;
 		long timeToSend = System.currentTimeMillis() - timerStartTime;
 		switch(statusN){
