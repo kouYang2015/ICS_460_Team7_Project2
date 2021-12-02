@@ -14,6 +14,8 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 
+import edu.metrostate.Packet.Packet;
+
 public class Server {
 	private static final int DEFAULT_PORT = 12345;
 	private static final double DEFAULT_CORRUPTCHANCE = 0;
@@ -60,24 +62,29 @@ public class Server {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 					break;
 				}
-/*				ByteBuffer bb = ByteBuffer.wrap(requestPacket.getData());
-                bb.get(checkSumByte, 0, checkSumByte.length); //grab checksum bytes
-                bb.get(lenByte, 0, lenByte.length); //grab length bytes
-                bb.get(sentAckNo, 0, sentAckNo.length); //grab ackNo bytes
-                bb.get(sentSeqNo, 0, sentSeqNo.length); //grab seqNo bytes
-                int convertLen = lenByte[1];
-                System.out.println(convertLen);
-                dataReceived = new byte[convertLen - 12];
-				System.out.println(dataReceived.length);
-                bb.get(dataReceived, 0, dataReceived.length); //grab the rest of the data, which is len -12 in
+//				ByteBuffer bb = ByteBuffer.wrap(requestPacket.getData());
+//				System.out.println(bb.remaining());
+//                bb.get(checkSumByte, 0, checkSumByte.length); //grab checksum bytes
+//                System.out.println(lenByte);
+//                bb.get(lenByte, 0, lenByte.length); //grab length bytes
+//                bb.get(sentAckNo, 0, sentAckNo.length); //grab ackNo bytes
+//                bb.get(sentSeqNo, 0, sentSeqNo.length); //grab seqNo bytes
+//                int convertLen = lenByte[1];
+//                System.out.println(convertLen);
+//                dataReceived = new byte[convertLen - 12];
+//				System.out.println(dataReceived.length);
+//                bb.get(dataReceived, 0, dataReceived.length); //grab the rest of the data, which is len -12 in
+//				
+//				checkSum = ByteBuffer.wrap(checkSumByte).getInt();
+//				sentAckNoInt = ByteBuffer.wrap(sentAckNo).getInt();
 				
-				checkSum = ByteBuffer.wrap(checkSumByte).getInt();
-				sentAckNoInt = ByteBuffer.wrap(sentAckNo).getInt();
-*/				
-				Packet newPacket = deserializeByteArray(requestPacket);
-				checkSum = newPacket.getCksum();
-				sentAckNoInt = newPacket.getAckno();
-				
+				checkSum = deserializeByteArray(requestPacket).getCksum();
+				sentAckNoInt = deserializeByteArray(requestPacket).getAckno();
+				System.out.println(checkSum);
+				System.out.println(deserializeByteArray(requestPacket).getLen());
+				System.out.println(sentAckNoInt);
+				System.out.println(deserializeByteArray(requestPacket).getSeqno());
+				System.out.println(deserializeByteArray(requestPacket).getData().length);
 				if (checkSum == 1) { //if requestPacket is corrupted
 					
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
@@ -85,7 +92,7 @@ public class Server {
 				} else { //if it is sent correctly
 					System.out.println("Sending response packet");
 					Packet dataPacket = new Packet(ackNo);
-					writeToFile(fileReceived, newPacket.getData());
+					writeToFile(fileReceived, deserializeByteArray(requestPacket).getData());
 					startOffset += requestPacket.getLength();
 					ackNo++;
 					DatagramPacket responsePacket = new DatagramPacket(dataPacket.turnIntoByteArrayServer(), dataPacket.getLen(), inetAddress, port);
@@ -117,7 +124,7 @@ public class Server {
         // base64 string to byte[]
         byte[] decodeFileName = Base64.getDecoder().decode(encodedB64FileName);
         String safeFileName = new String(decodeFileName); //Build string of decoded.
-		fileReceived = new File(safeFileName);	//Sets the new file to String of our decoded byte[]
+		fileReceived = new File("new"+safeFileName);	//Sets the new file to String of our decoded byte[]
 	}
 	
 	public Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {

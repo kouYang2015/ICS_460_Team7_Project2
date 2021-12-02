@@ -6,8 +6,6 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 public class Packet implements Serializable{
-	
-	private static final long serialVersionUID = 6708655364256248631L;
 	short cksum; //16-bit 2-byte 
 	short len;	//16-bit 2-byte 
 	int ackno;	//32-bit 4-byte 
@@ -46,11 +44,7 @@ public class Packet implements Serializable{
 	public byte[] turnIntoByteArrayClient() throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 	    ObjectOutputStream oos = new ObjectOutputStream(bos);
-	    oos.writeShort(cksum);
-	    oos.writeShort(len);
-	    oos.writeInt(ackno);
-	    oos.writeInt(seqno);
-	    oos.write(data);
+	    oos.writeObject(this);
 	    oos.flush();
 	    byte [] dataWithHeader = bos.toByteArray();
 		return dataWithHeader;
@@ -59,9 +53,7 @@ public class Packet implements Serializable{
 	public byte[] turnIntoByteArrayServer() throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 	    ObjectOutputStream oos = new ObjectOutputStream(bos);
-	    oos.writeShort(cksum);
-	    oos.writeShort(len);
-	    oos.writeInt(ackno);
+	    oos.writeObject(this);
 	    oos.flush();
 	    byte [] dataWithHeader = bos.toByteArray();
 		return dataWithHeader;

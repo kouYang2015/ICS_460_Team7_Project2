@@ -4,6 +4,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+
+import edu.metrostate.Packet.Packet;
+
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
@@ -82,6 +85,21 @@ public class Client {
 	}
 
 	/**
+	 * Turns the Packet object into a byte[].
+	 * @param packet
+	 * @return
+	 * @throws IOException
+	 */
+	public byte[] turnIntoByteArrayClient(Packet packet) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(bos);
+	    oos.writeObject(packet);
+	    oos.flush();
+	    byte [] dataWithHeader = bos.toByteArray();
+		return dataWithHeader;
+	}
+	
+	/**
 	 * Method used to send a requestPacket from Client to Server.
 	 * @throws IOException 
 	 * 
@@ -98,8 +116,8 @@ public class Client {
 				packetSize = fileContent.length - startOffset;
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
-			System.out.println(dataPacket.turnIntoByteArrayClient().length);
-			DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArrayClient(), dataPacket.getLen(), inetAddress,
+			System.out.println(turnIntoByteArrayClient(dataPacket).length);
+			DatagramPacket requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
 					port);
 			System.out.println(requestPacket.getLength());
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
@@ -129,21 +147,6 @@ public class Client {
 				timedOut = true;
 				continue;
 			} 
-			// TODO: See if checkAckPacket method works before deleting.
-//				ByteBuffer bb = ByteBuffer.wrap(responsePacket.getData());
-//				byte[] checksumByte = new byte[2];
-//				byte[] lenByte = new byte[2];
-//				bb.get(checksumByte, 0, checksumByte.length);	//Gets the first bit then move buffer location to 2. (beginning of len)
-//				bb.get(lenByte, 0, lenByte.length);	//Gets the 3rd,4th bit then move buffer location to 4. (beginning of ackNo)
-//				if (ByteBuffer.wrap(checksumByte).getInt() == 0 && ByteBuffer.wrap(lenByte).getInt() == 8) {
-//					//Get ackNo from AckPacket. Check against seqNo. if Equal, increment by one both seqnoCounter and acknoCounter
-//					byte[] acknoByte = new byte[4];
-//					bb.get(acknoByte, 0, acknoByte.length);
-//					if(ByteBuffer.wrap(acknoByte).getInt() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
-//						seqnoCounter++;
-//						acknoCounter = ByteBuffer.wrap(acknoByte).getInt() + 1;
-//					}
-//				}
 		}
 		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, port);
 		System.out.println("Sending empty packet: " + flagPacket.getLength()); //TODO: Debug print statement DELETE After
@@ -188,6 +191,7 @@ public class Client {
 	private synchronized Packet createDataPacket(byte[] file, int offset, int ackno, int seqno, int byteSize) {
 		ByteBuffer bb = ByteBuffer.wrap(file);
 		byte[] data = new byte[byteSize];
+		System.out.println("ByteBuffer data length is " + data.length); //TODO: delete
 		bb.get(data, 0, data.length);
 		Packet newPacket = new Packet(ackno, seqno, data);
 		return newPacket;
@@ -208,7 +212,7 @@ public class Client {
 		}
 		String status = !timedOutStatus ? "SENDing" : "ReSend";
 		System.out.println(String.format("%s %d %d : %d %d %s", 
-				status, seqnoCounter, startOffset, startOffset+request.getLength()-1, timeToSend, packetStatus));	//seqno, startOffset : endOffset, time sent in ms, status of packet (Sent, drop, error)
+				status, seqnoCounter, startOffset, startOffset+packetSize-1, timeToSend, packetStatus));	//seqno, startOffset : endOffset, time sent in ms, status of packet (Sent, drop, error)
 	}
 	
 	// TODO: IMPLEMENT ON SERVER SIDE send the file name string to server there first. May not need
