@@ -64,13 +64,13 @@ public class Server {
 //				System.out.println(sentAckNoInt);
 //				System.out.println(deserializeByteArray(requestPacket).getSeqno());
 //				System.out.println(deserializeByteArray(requestPacket).getData().length);
-				if (checkSum == 1 ) { //if requestPacket is corrupted
+				if (checkSum == 1) { //if requestPacket is corrupted
 					//TODO: send ackPacket back or do nothing?
-				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
+				} else if (sentAckNoInt < this.ackNo) { //if duplicate seqNo packets are received
 					
 				} else { //if it is sent correctly
 					System.out.println("Sending response packet");
-					Packet dataPacket = createAckPacket();
+					Packet dataPacket = createAckPacket(this.ackNo);
 					writeToFile(fileReceived, deserializeByteArray(requestPacket).getData());
 					ackNo++;
 					DatagramPacket responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length, 
@@ -106,6 +106,13 @@ public class Server {
 		fileReceived = new File("image.jpg");	//Sets the new file to String of our decoded byte[]
 	}
 	
+	/**
+	 * 
+	 * @param dp
+	 * @return
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
 	private synchronized Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
         ObjectInputStream ois = new ObjectInputStream(bis);
@@ -114,19 +121,18 @@ public class Server {
     }
 	
 	/**
-	 * Creates an AckPacket object.
+	 * Creates a Packet that represents an ackPacket. 
 	 * @return Packet: The Packet object that represents an ackPacket.
 	 */
-	private synchronized Packet createAckPacket() {
+	private synchronized Packet createAckPacket(int ackNo) {
 		Packet newPacket = new Packet(ackNo);
 		return newPacket;
 	}
 	
 	/**
-	 * Method used to concatenate new requestPacket byte data to the previous requestPacket. Also prints to console information
-	 * about packet#, start offset, end offset.
-	 * @param file
-	 * @param request
+	 * Method used to concatenate new DataPacket byte[] to the file.
+	 * @param file: The file we want to add the new byte[] array to.
+	 * @param data: the byte[] data we will write to the file.
 	 */
 	private synchronized void writeToFile(File file, byte[] data) {
 		try {

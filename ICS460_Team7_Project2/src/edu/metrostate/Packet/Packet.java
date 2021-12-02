@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 public class Packet implements Serializable{
+	private static final long serialVersionUID = 5064345598182630522L;
 	short cksum; //16-bit 2-byte 
 	short len;	//16-bit 2-byte 
 	int ackno;	//32-bit 4-byte 
@@ -88,7 +89,11 @@ public class Packet implements Serializable{
 		//TODO: make rand num generator with chance of getting 1 or 2 equal to -d from cmd line.
 		switch(statusNum) {
 			case(1): return 1;	//Packet will get dropped
-			case(2): return 2; 	//Packet got corrupted. Checksum changed to 1 or len changed (len now > 512 for DataPacket or len now > 8 for AckPacket
+			case(2): 
+				byte[] b = new byte[this.data.length+2];
+				b[this.data.length] = (byte) this.len;
+				b[this.data.length+1] = (byte) this.len;
+				return 2; 	//Packet got corrupted. Checksum changed to 1 or len changed (len now > 512 for DataPacket or len now > 8 for AckPacket
 			default: return 0;	//No drop/corruption. Packet will be sent successfully
 		}
 	}

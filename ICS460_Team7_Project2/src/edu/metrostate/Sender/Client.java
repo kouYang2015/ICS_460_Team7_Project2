@@ -102,21 +102,18 @@ public class Client {
 			System.out.println(requestPacket.getLength());
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
 
-/*			switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
-			case (1): // TODO: Do nothing. Packet got dropped. Wait out timer and Resend same packet.
-			case (2): // TODO: Send packet but it got corrupted. Use method printCorruptStatus
-			default: // TODO: Send packet with no corruption.
-			}*/
-
-			
-			datagramSocket.send(requestPacket);
-			printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
-			startOffset += packetSize;
+			//Send packet if it didn't get drop regardless of corruption.
+			if (dataPacket.getStatus(corruptChance) != 1) {
+				datagramSocket.send(requestPacket);
+				printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
+			}
 			try {
 				datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
 				DatagramPacket responsePacket = new DatagramPacket(new byte[packetSize], packetSize);
 				datagramSocket.receive(responsePacket);
+				System.out.println(checkAckPacket(responsePacket));
 				if (checkAckPacket(responsePacket)) {
+					startOffset += packetSize;
 					seqnoCounter++;
 					timedOut = false;
 				}
@@ -147,29 +144,16 @@ public class Client {
 	 * @param ackPacket: a DatagramPacket that contains the byte[] of data received from the Server/Receiver.
 	 * @return	true: iff the checkSum is 0, len is 8, and ackNo is seqnoCounter+1.
 	 * 			false: iff the checkSum is not 0 or len is not 8 or ackNo is not seqnoCounter+1. 
-	 * @throws IOException 
+	 * @throws IOException
 	 * @throws ClassNotFoundException 
 	 */
 	private synchronized boolean checkAckPacket(DatagramPacket ackPacket) throws ClassNotFoundException, IOException {
-		//TODO: Turn this into a method? Check the checksum of AckPacket and len == 8. If good, then check ackNo from packet against seqnoCounter.
-//		ByteBuffer bb = ByteBuffer.wrap(ackPacket.getData());
-//		byte[] checksumByte = new byte[2];
-//		byte[] lenByte = new byte[2];
-//		bb.get(checksumByte, 0, checksumByte.length);	//Gets the first bit then move buffer location to 2. (beginning of len)
-//		bb.get(lenByte, 0, lenByte.length);	//Gets the 3rd,4th bit then move buffer location to 4. (beginning of ackNo)
-		if (deserializeByteArray(ackPacket).getCksum() == 0 && deserializeByteArray(ackPacket).getLen() == 8) {
+		if (deserializeByteArray(ackPacket).getCksum() == 0 && 
+				deserializeByteArray(ackPacket).getLen() == deserializeByteArray(ackPacket).toByteArray().length) {
 			if(deserializeByteArray(ackPacket).getAckno() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
 				return true;
 			}
 		}
-//		if (ByteBuffer.wrap(checksumByte).getInt() == 0 && ByteBuffer.wrap(lenByte).getInt() == 8) {
-//			//Get ackNo from AckPacket. Check against seqNo. if Equal, increment by one both seqnoCounter and acknoCounter
-//			byte[] acknoByte = new byte[4]; //Last 4 bit are ackno
-//			bb.get(acknoByte, 0, acknoByte.length);
-//			if(ByteBuffer.wrap(acknoByte).getInt() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
-//				return true;
-//			}
-//		}
 		return false;
 	}
 	
@@ -246,7 +230,6 @@ public class Client {
 					System.out.println("Invalid packet length specified.");
 					return;
 				}
-				//TODO: Make an if statement to make sure packet length is between 0-500. Specified in documents. Throw exception if outside range.
 				i += 2;
 			} else if (args[i].equals("-t")) {
 				try {
