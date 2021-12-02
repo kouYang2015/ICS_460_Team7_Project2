@@ -87,10 +87,10 @@ public class Server {
 					case (2): printResponse(startTime, 2);
 					default: printResponse(startTime, 0);
 					}
-					ackNo++;
 					responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length,
 							requestPacket.getAddress(), requestPacket.getPort());
 					datagramSocket.send(responsePacket);
+					ackNo++;
 				}
 				
 			} catch (IOException e) {
@@ -180,10 +180,14 @@ public class Server {
 	private synchronized void printResponse(long startTimer, int sentCode) {
 		String errorCode;
 		long timeSent = System.currentTimeMillis() - startTimer;
-		switch (sentCode) {
-		case (1): errorCode = "DROP";
-		case (2): errorCode = "ERR";
-		default: errorCode = "SENT";
+		if (sentCode == 1) {
+			errorCode = "DROP";
+		}
+		else if (sentCode == 2) {
+			errorCode = "ERR";
+		}
+		else {
+			errorCode = "SENT";
 		}
 		System.out.println(String.format("%s %s %d %d %s", "SENDing", "ACK", ackNo, timeSent, errorCode));
 	}

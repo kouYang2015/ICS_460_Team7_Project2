@@ -108,6 +108,12 @@ public class Client {
 					e.printStackTrace();
 				}
 			}
+			else if (statusIdentifier == 2) {
+				requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), 
+						turnIntoByteArrayClient(dataPacket).length, inetAddress, port);
+				datagramSocket.send(requestPacket);
+				printSendStatus(statusIdentifier, startTime, timedOut);
+			}
 			else {
 				requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), 
 						turnIntoByteArrayClient(dataPacket).length, inetAddress, port);
@@ -126,7 +132,6 @@ public class Client {
 			datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
 			DatagramPacket responsePacket = new DatagramPacket(new byte[1024], 1024);
 			datagramSocket.receive(responsePacket);
-			System.out.println(checkAckPacket(responsePacket));
 			if (checkAckPacket(responsePacket)) {
 				startOffset += packetSize;
 				seqnoCounter++;
@@ -218,6 +223,27 @@ public class Client {
 		String status = !timedOutStatus ? "SENDing" : "ReSend";
 		System.out.println(String.format("%s %d %d : %d %d %s", 
 				status, seqnoCounter, startOffset, startOffset+packetSize-1, timeToSend, packetStatus));	//seqno, startOffset : endOffset, time sent in ms, status of packet (Sent, drop, error)
+	}
+	
+	/**
+	 * Method used to print to console, what occurred to the DatagramPacket.
+	 * @param request: the DatagramPacket whose information we are printing.
+	 * @param num: 
+	 */
+	private void printAckReceiveStatus(int acknoRec , long timerStartTime) {
+		String packetStatus = "";
+		long timeToSend = System.currentTimeMillis() - timerStartTime;
+		System.out.println("acknoRec is " + acknoRec);
+		if (acknoRec == seqnoCounter) {
+			packetStatus = "MoveWnd";
+		}
+		else if (acknoRec < seqnoCounter) {
+			packetStatus = "ErrAck";
+		}
+		else if (acknoRec < seqnoCounter) {
+			packetStatus = "DuplAck";
+		}
+		System.out.println(String.format("AckRcvd %d %s", acknoRec, packetStatus));	
 	}
 	
 	// TODO: IMPLEMENT ON SERVER SIDE send the file name string to server there first. May not need
