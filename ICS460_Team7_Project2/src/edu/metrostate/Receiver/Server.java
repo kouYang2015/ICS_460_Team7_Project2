@@ -59,21 +59,44 @@ public class Server {
 				Packet newPacket = deserializeByteArray(requestPacket);
 				checkSum = newPacket.getCksum();
 				sentAckNoInt = newPacket.getAckno();
+				DatagramPacket responsePacket;
 //				System.out.println(checkSum);
 //				System.out.println(deserializeByteArray(requestPacket).getLen());
 //				System.out.println(sentAckNoInt);
 //				System.out.println(deserializeByteArray(requestPacket).getSeqno());
 //				System.out.println(deserializeByteArray(requestPacket).getData().length);
-				if (checkSum == 1 ) { //if requestPacket is corrupted
-					//TODO: send ackPacket back or do nothing?
+				if (checkSum == 1 || newPacket.getLen() != newPacket.getData().length + 12) { //if requestPacket is corrupted
+					System.out.println("Bad packet");
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
-					
+					Packet dataPacket = createAckPacket();
+					int statusIdentifier = dataPacket.getStatus(corruptChance);
+					System.out.println(statusIdentifier);
+					System.out.println("In duplicate if");
+					System.out.println(ackNo);
+
+					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
+					case (1): continue;
+					case (2): //print corrupt
+					default: //print
+					}
+					responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length,
+							requestPacket.getAddress(), requestPacket.getPort());
+					datagramSocket.send(responsePacket);
 				} else { //if it is sent correctly
 					System.out.println("Sending response packet");
 					Packet dataPacket = createAckPacket();
 					writeToFile(fileReceived, deserializeByteArray(requestPacket).getData());
+					int statusIdentifier = dataPacket.getStatus(corruptChance);
+					System.out.println(statusIdentifier);
+					System.out.println(ackNo);
+					
+					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
+					case (1): continue;
+					case (2): //print
+					default: //print
+					}
 					ackNo++;
-					DatagramPacket responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length, 
+					responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length,
 							requestPacket.getAddress(), requestPacket.getPort());
 					long startTime = System.currentTimeMillis();
 					datagramSocket.send(responsePacket);
@@ -138,6 +161,18 @@ public class Server {
 		}
 	}
 	
+	private int corrupt() {
+		if (Math.random() < corruptChance) {
+			if (Math.random() < .5) {
+				return 1;
+			} else {
+				return 2;
+			}
+		} else {
+			return 0;
+		}
+	}
+	
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		double corruptchance = -1;
 		InetAddress inetAddress = null;
@@ -146,11 +181,12 @@ public class Server {
 		while (i < args.length - 1) {
 			if (args[i].equals("-d")) {
 				try {
-					corruptchance = Integer.parseInt(args[i + 1]);
+					corruptchance = Double.parseDouble(args[i + 1]);
 				} catch (NumberFormatException e) {
 					System.out.println("Invalid packet corruption chance specified.");
 					return;
 				}
+				i += 2;
 			} else {
 				if (inetAddress == null) {
 					inetAddress = InetAddress.getByAddress(args[i].getBytes());

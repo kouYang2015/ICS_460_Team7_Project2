@@ -86,8 +86,8 @@ public class Client {
 	 */
 	public void sendPacket() throws IOException, ClassNotFoundException {
 		boolean timedOut = false; //Use this boolean to determine if timed out? Resets to false after a successful AckPacket
-		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + packetSize); // TODO: DEBUG STATEMENT DELETE AFTER
 		long startTime = System.currentTimeMillis();
+		DatagramPacket requestPacket;
 		while (true) {
 			if (seqnoCounter > Math.ceil(fileContent.length / packetSize)) { //Check if we sent all necessary packets
 				break;
@@ -96,27 +96,38 @@ public class Client {
 				packetSize = fileContent.length - startOffset;
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
-			System.out.println(turnIntoByteArrayClient(dataPacket).length);
-			DatagramPacket requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
-					port);
-			System.out.println(requestPacket.getLength());
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
 
-/*			switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
-			case (1): // TODO: Do nothing. Packet got dropped. Wait out timer and Resend same packet.
-			case (2): // TODO: Send packet but it got corrupted. Use method printCorruptStatus
-			default: // TODO: Send packet with no corruption.
-			}*/
+			switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
+			case (1): try {
+					Thread.sleep(timeout);
+					timedOut = true;
+					continue;
+				} catch (InterruptedException e1) {
+					e1.printStackTrace();
+				}
+			case (2): if (Math.random() < .5) { // TODO: Send packet but it got corrupted. Use method printCorruptStatus
+					dataPacket.setCksum();
+					requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
+							port);
+				} else {
+					dataPacket.setData(new byte[1000]);
+					requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
+							port);
+				}
+			default: requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
+					port); // TODO: Send packet with no corruption.
+			}
 
 			
 			datagramSocket.send(requestPacket);
 			printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
-			startOffset += packetSize;
 			try {
 				datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
 				DatagramPacket responsePacket = new DatagramPacket(new byte[packetSize], packetSize);
 				datagramSocket.receive(responsePacket);
 				if (checkAckPacket(responsePacket)) {
+					startOffset += packetSize;
 					seqnoCounter++;
 					timedOut = false;
 				}
@@ -151,25 +162,12 @@ public class Client {
 	 * @throws ClassNotFoundException 
 	 */
 	private synchronized boolean checkAckPacket(DatagramPacket ackPacket) throws ClassNotFoundException, IOException {
-		//TODO: Turn this into a method? Check the checksum of AckPacket and len == 8. If good, then check ackNo from packet against seqnoCounter.
-//		ByteBuffer bb = ByteBuffer.wrap(ackPacket.getData());
-//		byte[] checksumByte = new byte[2];
-//		byte[] lenByte = new byte[2];
-//		bb.get(checksumByte, 0, checksumByte.length);	//Gets the first bit then move buffer location to 2. (beginning of len)
-//		bb.get(lenByte, 0, lenByte.length);	//Gets the 3rd,4th bit then move buffer location to 4. (beginning of ackNo)
-		if (deserializeByteArray(ackPacket).getCksum() == 0 && deserializeByteArray(ackPacket).getLen() == 8) {
-			if(deserializeByteArray(ackPacket).getAckno() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
+		if (deserializeByteArray(ackPacket).getCksum() == 0 &&
+				deserializeByteArray(ackPacket).getLen() == ackPacket.getData().length) {
+			if(deserializeByteArray(ackPacket).getAckno() >= seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
 				return true;
 			}
 		}
-//		if (ByteBuffer.wrap(checksumByte).getInt() == 0 && ByteBuffer.wrap(lenByte).getInt() == 8) {
-//			//Get ackNo from AckPacket. Check against seqNo. if Equal, increment by one both seqnoCounter and acknoCounter
-//			byte[] acknoByte = new byte[4]; //Last 4 bit are ackno
-//			bb.get(acknoByte, 0, acknoByte.length);
-//			if(ByteBuffer.wrap(acknoByte).getInt() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
-//				return true;
-//			}
-//		}
 		return false;
 	}
 	
@@ -189,7 +187,6 @@ public class Client {
 			data[dataIndex] = file[i];
 			dataIndex++;
 		}
-		System.out.println("ByteBuffer data length is " + data.length); //TODO: delete
 		Packet newPacket = new Packet(ackno, seqno, data);
 		return newPacket;
 	}
@@ -225,6 +222,18 @@ public class Client {
 		System.out.println("Sent filepath: " + fileName);
 	}
 	
+	private int corrupt() {
+		if (Math.random() < corruptChance) {
+			if (Math.random() < .5) {
+				return 1;
+			} else {
+				return 2;
+			}
+		} else {
+			return 0;
+		}
+	}
+	
 	/**
 	 * Main method. Executes the rest of the program when user inputs the file from cmd line.
 	 * @param args
@@ -258,11 +267,12 @@ public class Client {
 				i += 2;
 			} else if (args[i].equals("-d")) {
 				try {
-					corruptchance = Integer.parseInt(args[i + 1]);
+					corruptchance = Double.parseDouble(args[i + 1]);
 				} catch (NumberFormatException e) {
 					System.out.println("Invalid packet corruption chance specified.");
 					return;
 				}
+				i += 2;
 			} else {
 				if (inetAddress == null) {
 					inetAddress = InetAddress.getByAddress(args[i].getBytes());
