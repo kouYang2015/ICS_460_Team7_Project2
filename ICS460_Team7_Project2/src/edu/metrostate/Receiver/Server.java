@@ -1,10 +1,12 @@
 package edu.metrostate.Receiver;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -41,7 +43,7 @@ public class Server {
 	
 	public void receivePacket() throws ClassNotFoundException {
 		int checkSum;
-		int sentAckNoInt;
+		int seqnoRec;
 		long startTime = System.currentTimeMillis();
 		while(true) {
 			try {
@@ -54,43 +56,47 @@ public class Server {
 				}
 				Packet newPacket = deserializeByteArray(requestPacket);
 				checkSum = newPacket.getCksum();
-				sentAckNoInt = newPacket.getAckno();
+				seqnoRec = newPacket.getSeqno();
 				DatagramPacket responsePacket;
 //				System.out.println(checkSum);
-//				System.out.println(deserializeByteArray(requestPacket).getLen());
+				System.out.println("len is " + newPacket.getLen());
 //				System.out.println(sentAckNoInt);
 //				System.out.println(deserializeByteArray(requestPacket).getSeqno());
-//				System.out.println(deserializeByteArray(requestPacket).getData().length);
-				if (checkSum == 1 || newPacket.getLen() != newPacket.getData().length + 12) { //if requestPacket is corrupted
-					printWhatWasReceived(startTime, 2);
-				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
-					printWhatWasReceived(startTime, 1);
-					Packet dataPacket = createAckPacket(ackNo);
+				System.out.println("data length is " + newPacket.getData().length);
+				if (checkSum == 1 || newPacket.getLen() != (newPacket.getData().length + 12)) { //if requestPacket is corrupted
+					printDataPacket(startTime, 2);
+					//Don't create and send AckPacket back.
+				} else if (seqnoRec < ackNo) { //Got a non corrupted duplicate seqNo packet.
+					printDataPacket(startTime, 1);
+					Packet dataPacket = createAckPacket(seqnoRec); //Create dataPacket with ackNo == seqNo we received
 					
 					int statusIdentifier = dataPacket.getStatus(corruptChance);
 					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
-					case (1): printResponse(startTime, 1); continue;
-					case (2): printResponse(startTime, 2);
-					default: printResponse(startTime, 0);
+					case (1): printAckStatus(startTime, statusIdentifier, dataPacket.getAckno()); continue;
+					case (2): printAckStatus(startTime, statusIdentifier, dataPacket.getAckno());
+					default: printAckStatus(startTime, statusIdentifier, dataPacket.getAckno());
 					}
-					responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length,
+					responsePacket = new DatagramPacket(serializeByteArray(dataPacket), serializeByteArray(dataPacket).length,
 							requestPacket.getAddress(), requestPacket.getPort());
 					datagramSocket.send(responsePacket);
-				} else { //if it is sent correctly
-					printWhatWasReceived(startTime, 0);
-					Packet dataPacket = createAckPacket(this.ackNo);
-					writeToFile(fileReceived, deserializeByteArray(requestPacket).getData());
+				} else { //got new good packet. increment ackNo by one. so we can check if next packet is dupe (ackNo > seqNoReceived)
+					printDataPacket(startTime, 0);
+					if (checkSum == 1 && newPacket.getLen() == (newPacket.getData().length + 12) && 
+							seqnoRec == ackNo) {
+						System.out.println("Good packet received");
+					}
+					Packet dataPacket = createAckPacket(seqnoRec); //Create dataPacket with ackNo == seqNo we received to acknowledge pack on client side
+					writeToFile(fileReceived, newPacket.getData());
 					int statusIdentifier = dataPacket.getStatus(corruptChance);
-					
-					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
-					case (1): printResponse(startTime, 1); continue;
-					case (2): printResponse(startTime, 2);
-					default: printResponse(startTime, 0);
+					ackNo++; //Increment ackNo no matter what before doing switch case.
+					switch (statusIdentifier) {
+					case (1): printAckStatus(startTime, statusIdentifier, dataPacket.getAckno()); continue; //got dropped. dont send
+					case (2): printAckStatus(startTime, statusIdentifier, dataPacket.getAckno()); //Corrupted but still send. no continue
+					default: printAckStatus(startTime, statusIdentifier, dataPacket.getAckno()); //good ack packet. 
 					}
-					responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length,
+					responsePacket = new DatagramPacket(serializeByteArray(dataPacket), serializeByteArray(dataPacket).length,
 							requestPacket.getAddress(), requestPacket.getPort());
 					datagramSocket.send(responsePacket);
-					ackNo++;
 				}
 				
 			} catch (IOException e) {
@@ -133,6 +139,15 @@ public class Server {
         return deserializedPacket;
     }
 	
+	public byte[] serializeByteArray(Packet packet) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(bos);
+	    oos.writeObject(packet);
+	    oos.flush();
+	    byte [] dataWithHeader = bos.toByteArray();
+		return dataWithHeader;
+	}
+	
 	/**
 	 * Creates a Packet that represents an ackPacket. 
 	 * @return Packet: The Packet object that represents an ackPacket.
@@ -157,7 +172,7 @@ public class Server {
 		}
 	}
 	
-	private synchronized void printWhatWasReceived(long startTimer, int receivedCode) {
+	private synchronized void printDataPacket(long startTimer, int receivedCode) {
 		String firstCode, errorCode;
 		long timeReceived = System.currentTimeMillis() - startTimer;
 		System.out.println(receivedCode);
@@ -177,7 +192,7 @@ public class Server {
 				firstCode, timeReceived, ackNo, errorCode));
 	}
 	
-	private synchronized void printResponse(long startTimer, int sentCode) {
+	private synchronized void printAckStatus(long startTimer, int sentCode, int ackPackNo) {
 		String errorCode;
 		long timeSent = System.currentTimeMillis() - startTimer;
 		if (sentCode == 1) {
@@ -189,7 +204,7 @@ public class Server {
 		else {
 			errorCode = "SENT";
 		}
-		System.out.println(String.format("%s %s %d %d %s", "SENDing", "ACK", ackNo, timeSent, errorCode));
+		System.out.println(String.format("%s %s %d %d %s", "SENDing", "ACK", ackPackNo, timeSent, errorCode));
 	}
 	
 	public static void main(String[] args) throws IOException, ClassNotFoundException {

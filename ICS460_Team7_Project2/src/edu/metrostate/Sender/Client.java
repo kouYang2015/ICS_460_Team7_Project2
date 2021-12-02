@@ -21,7 +21,7 @@ import java.net.UnknownHostException;
 public class Client {
 	private static final int DEFAULT_PORT = 12345;
 	private static final int DEFAULT_PACKET_SIZE = 400;
-	private static final int DEFAULT_TIMEOUT = 2000;
+	private static final int DEFAULT_TIMEOUT = 1000;
 	private static final double DEFAULT_CORRUPTCHANCE = 0;
 	private int port;
 	private int packetSize; //command line argument for packet size
@@ -68,7 +68,7 @@ public class Client {
 	 * @return
 	 * @throws IOException
 	 */
-	public byte[] turnIntoByteArrayClient(Packet packet) throws IOException {
+	public byte[] serializeByteArray(Packet packet) throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 	    ObjectOutputStream oos = new ObjectOutputStream(bos);
 	    oos.writeObject(packet);
@@ -76,6 +76,13 @@ public class Client {
 	    byte [] dataWithHeader = bos.toByteArray();
 		return dataWithHeader;
 	}
+	
+	public Packet deserializeByteArray(DatagramPacket dp) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
+        ObjectInputStream ois = new ObjectInputStream(bis);
+        Packet deserializedPacket = (Packet) ois.readObject();
+        return deserializedPacket;
+    }
 	
 	/**
 	 * Method used to send a requestPacket from Client to Server.
@@ -98,59 +105,49 @@ public class Client {
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
 			System.out.print("statusIdentifier is " + statusIdentifier);
-			if (statusIdentifier == 1) {
-				try {
-					Thread.sleep(timeout);
-					timedOut = true;
+			if (statusIdentifier == 1) { //We drop. try to wait and receive. Should always go to timeout
+					timedOut = receiveAckPacket(startTime);
 					printSendStatus(statusIdentifier, startTime, timedOut);
 					continue;
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
 			}
-			else if (statusIdentifier == 2) {
-				requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), 
-						turnIntoByteArrayClient(dataPacket).length, inetAddress, port);
+			else if (statusIdentifier == 2) { // Corrupted but we still send
+				requestPacket = new DatagramPacket(serializeByteArray(dataPacket), 
+						serializeByteArray(dataPacket).length, inetAddress, port);
 				datagramSocket.send(requestPacket);
 				printSendStatus(statusIdentifier, startTime, timedOut);
 			}
-			else {
-				requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), 
-						turnIntoByteArrayClient(dataPacket).length, inetAddress, port);
+			else { //No corruption. Sending good packet
+				requestPacket = new DatagramPacket(serializeByteArray(dataPacket), 
+						serializeByteArray(dataPacket).length, inetAddress, port);
 				datagramSocket.send(requestPacket);
 				printSendStatus(statusIdentifier, startTime, timedOut);
 			}
-			timedOut = receiveAckPacket();
+			timedOut = receiveAckPacket(startTime);
 		}
 		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, port);
 		System.out.println("Sending empty packet: " + flagPacket.getLength()); //TODO: Debug print statement DELETE After
 		datagramSocket.send(flagPacket); // Send an empty packet to denote no data left to send. (Our flag)
 	}
 	
-	public boolean receiveAckPacket() throws SocketException, IOException, ClassNotFoundException {
+	public boolean receiveAckPacket(long timerStartTime) throws SocketException, IOException, ClassNotFoundException {
 		try {
 			datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
 			DatagramPacket responsePacket = new DatagramPacket(new byte[1024], 1024);
 			datagramSocket.receive(responsePacket);
-			if (checkAckPacket(responsePacket)) {
-				startOffset += packetSize;
+			Packet ackPacket = deserializeByteArray(responsePacket);
+			if (checkAckPacket(responsePacket, timerStartTime)) { 
+				startOffset += packetSize; 
 				seqnoCounter++;
-				return false;
+				return false; //Ackpacket pack is good. Timeout is false, increment seqnoCounter, incrementOffset
 			}
 			else {
-				return true;
+				return true; //Ackpacket was corrupted or a dupe was found. Will timeout and resend same packet.
 			}
-		} catch (SocketTimeoutException e) {
+		} catch (SocketTimeoutException e) { //Ackpacket was dropped on server side. Timeout and resend same packet
+			System.out.println("Timedout " + seqnoCounter);
 			return true;
 		} 
 	}
-	
-	public Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {
-        ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
-        ObjectInputStream ois = new ObjectInputStream(bis);
-        Packet deserializedPacket = (Packet) ois.readObject();
-        return deserializedPacket;
-    }
 	
 	/**
 	 * This method checks if the AckPacket we received from the Server/Receiver is not corrupted, has the correct length of 8, 
@@ -162,22 +159,30 @@ public class Client {
 	 * @throws IOException
 	 * @throws ClassNotFoundException 
 	 */
-	private synchronized boolean checkAckPacket(DatagramPacket responsePacket) throws ClassNotFoundException, IOException {
+	private synchronized boolean checkAckPacket(DatagramPacket responsePacket, long timerStartTime) throws ClassNotFoundException, IOException {
 		Packet ackPacket = deserializeByteArray(responsePacket);
-		if (ackPacket.getData() == null) {
-			if (ackPacket.getCksum() == 0 && ackPacket.getLen() == 8) {
-				if(ackPacket.getAckno() >= seqnoCounter) {
-					return true;
-				}
-			}
-			return false;
+		if (ackPacket.getAckno() == seqnoCounter) { //Server got good AckPacket
+			
 		}
-		else {
-			if (ackPacket.getCksum() == 0 && ackPacket.getLen() == ackPacket.toByteArray().length) {
-				if(ackPacket.getAckno() >= seqnoCounter) {
-					return true;
-				}
+		else if (ackPacket.getAckno() == seqnoCounter) {
+			
+		}
+		else if (ackPacket.getAckno() == seqnoCounter) {
+	
+		}
+		
+		if (ackPacket.getData() == null && ackPacket.getCksum() == 0) { //Our len will be == 8 then
+			if (ackPacket.getAckno() == seqnoCounter) {
+				printAckReceiveStatus(ackPacket.getAckno() , timerStartTime, 0);//Good ackPacket, move wind
+				return true;
 			}
+			else {
+				printAckReceiveStatus(ackPacket.getAckno() , timerStartTime, 2);//good ackpacket but dupe. getAckNo < seqno
+				return false;
+			}
+		}
+		else { //Our packet was corrupted, extra data[] detected or checksum is not good or seqno != ackno return false
+			printAckReceiveStatus(ackPacket.getAckno() , timerStartTime, 1); //Corrupted ackpacket
 			return false;
 		}
 	}
@@ -230,17 +235,17 @@ public class Client {
 	 * @param request: the DatagramPacket whose information we are printing.
 	 * @param num: 
 	 */
-	private void printAckReceiveStatus(int acknoRec , long timerStartTime) {
+	private void printAckReceiveStatus(int acknoRec , long timerStartTime, int statusNo) {
 		String packetStatus = "";
 		long timeToSend = System.currentTimeMillis() - timerStartTime;
 		System.out.println("acknoRec is " + acknoRec);
-		if (acknoRec == seqnoCounter) {
+		if (statusNo == 0) {
 			packetStatus = "MoveWnd";
 		}
-		else if (acknoRec < seqnoCounter) {
+		else if (acknoRec == 1) { //AckPacket was corrupted.
 			packetStatus = "ErrAck";
 		}
-		else if (acknoRec < seqnoCounter) {
+		else if (acknoRec == 2) { //AckPacket dupe
 			packetStatus = "DuplAck";
 		}
 		System.out.println(String.format("AckRcvd %d %s", acknoRec, packetStatus));	

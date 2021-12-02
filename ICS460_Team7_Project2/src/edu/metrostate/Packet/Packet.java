@@ -88,15 +88,21 @@ public class Packet implements Serializable{
 		case (1):
 			return 1; // Packet will get dropped
 		case (2):
+			setCksum(); // Corrupt Cksum.
 			if (Math.random() < .5) { // 50-50 chance to corrupt checksum or data length.
 				setCksum(); // Corrupt Cksum.
+				System.out.println("chksum bad: " + cksum);
 			} else {
 				if (data == null) { // Used to corrupte AckPackets
-					data = new byte[2];
+					System.out.println("data is null? " + (data == null));
+					byte[] extraData = new byte[2];
+					setData(extraData);
 				} else { // Used to corrupt DataPackets
-					byte[] badData = new byte[this.data.length + 2];
+					System.out.println("data length before " + data.length);
+					byte[] badData = new byte[data.length+2];
 					setData(badData);
 				}
+				System.out.println("data length now " + data.length);
 			}
 			return 2; // Packet got corrupted. Checksum changed to 1 or len changed (len now > 512 for
 						// DataPacket or len now > 8 for AckPacket
