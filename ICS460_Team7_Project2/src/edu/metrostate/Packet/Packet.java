@@ -84,6 +84,13 @@ public class Packet implements Serializable{
 		return dataWithHeader;
 	}
 
+	/**
+	 * 
+	 * @param corruptChance the double value representing the percent chance of corrupting a packet.
+	 * @return 	0: iff no corruption occurred to the Packet's properties
+	 * 			1: iff no corruption occurred but the Packet will be drop and not sent via a DatagramSocket.
+	 * 			2: iff Packet corrupted. Either the chksum or the byte[] data property will be appended some extra values.
+	 */
 	public synchronized int getStatus(double corruptChance) {
 		int statusNum = corrupt(corruptChance);
 		switch (statusNum) {
@@ -92,21 +99,18 @@ public class Packet implements Serializable{
 		case (2):
 			if (Math.random() <= .5) { // 50-50 chance to corrupt checksum or data length.
 				setCksum(); // Corrupt Cksum.
-				System.out.println("chksum now bad: " + cksum);
 			} 
 			else {
-				byte[] extraData = {0, 0};
-				if (data == null) { // Used to corrupte AckPackets
-					System.out.println("data is null? " + (data == null));
+				byte[] extraData = {1, 1};
+				if (data == null) { // Used to corrupt AckPackets
 					setData(extraData);
 				} else { // Used to corrupt DataPackets
-					System.out.println("data length before " + data.length);
+					//Add to end two extra bad data
 					byte[] badData = new byte[data.length+2];
-					badData[data.length] = extraData[0]; //Add to end two extra bad data
+					badData[data.length] = extraData[0];
 					badData[data.length+1] = extraData[1];
 					setData(badData);
 				}
-				System.out.println("data length now " + data.length);
 			}
 			return 2; // Packet got corrupted. Checksum changed to 1 or len changed (len now > 512 for
 						// DataPacket or len now > 8 for AckPacket
@@ -115,15 +119,22 @@ public class Packet implements Serializable{
 		}
 	}
 	
+	/**
+	 * Generates an int value to denote what corruption step is to be done on the Packet if any based on corruptChance.
+	 * @param corruptChance the double value representing the percent chance of corrupting a packet. 
+	 * @return 	0: iff no corruption occurred to the Packet's properties nor will Packet drop.
+	 * 			1: iff no corruption occurred but the Packet will be drop and not sent via a DatagramSocket.
+	 * 			2: iff Packet properties will get corrupted..
+	 */
 	public synchronized int corrupt(double corruptChance) {
 		if (Math.random() < corruptChance) {
-			if (Math.random() < .5) {
-				return 1;
+			if (Math.random() < .5) { 	// 50-50 chance to drop or corrupt data.
+				return 1; 	// Packet will drop.
 			} else {
-				return 2;
+				return 2;	// Packet will get corrupted.
 			}
 		} else {
-			return 0;
+			return 0;	// No corruption to Packet nor drop.
 		}
 	}
 }
