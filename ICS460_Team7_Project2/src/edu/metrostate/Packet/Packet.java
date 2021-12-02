@@ -11,7 +11,7 @@ public class Packet implements Serializable{
 	short len;	//16-bit 2-byte 
 	int ackno;	//32-bit 4-byte 
 	int seqno; //32-bit 4-byte Data packet Only 
-	byte[] data; //0-500 bytes. Data packet only. Variable
+	byte[] data = null; //0-500 bytes. Data packet only. Variable
 	
 	/**
 	 * Used by Client to create DataPackets. len determined by byte[] data size + 12.
@@ -40,7 +40,9 @@ public class Packet implements Serializable{
 		return cksum;
 	}
 	public void setCksum() {
-		this.cksum = (short) (this.cksum == 0 ? 1 : 0);
+		if (cksum == 0){
+			cksum = 1;
+		}
 	}
 	public short getLen() {
 		return len;
@@ -82,24 +84,26 @@ public class Packet implements Serializable{
 		return dataWithHeader;
 	}
 
-	public int getStatus(double corruptChance) {
+	public synchronized int getStatus(double corruptChance) {
 		int statusNum = corrupt(corruptChance);
 		switch (statusNum) {
 		case (1):
 			return 1; // Packet will get dropped
 		case (2):
-			setCksum(); // Corrupt Cksum.
-			if (Math.random() < .5) { // 50-50 chance to corrupt checksum or data length.
+			if (Math.random() <= .5) { // 50-50 chance to corrupt checksum or data length.
 				setCksum(); // Corrupt Cksum.
-				System.out.println("chksum bad: " + cksum);
-			} else {
+				System.out.println("chksum now bad: " + cksum);
+			} 
+			else {
+				byte[] extraData = {0, 0};
 				if (data == null) { // Used to corrupte AckPackets
 					System.out.println("data is null? " + (data == null));
-					byte[] extraData = new byte[2];
 					setData(extraData);
 				} else { // Used to corrupt DataPackets
 					System.out.println("data length before " + data.length);
 					byte[] badData = new byte[data.length+2];
+					badData[data.length] = extraData[0]; //Add to end two extra bad data
+					badData[data.length+1] = extraData[1];
 					setData(badData);
 				}
 				System.out.println("data length now " + data.length);
@@ -111,7 +115,7 @@ public class Packet implements Serializable{
 		}
 	}
 	
-	public int corrupt(double corruptChance) {
+	public synchronized int corrupt(double corruptChance) {
 		if (Math.random() < corruptChance) {
 			if (Math.random() < .5) {
 				return 1;

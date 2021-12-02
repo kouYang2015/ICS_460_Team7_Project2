@@ -54,7 +54,7 @@ public class Client {
 	 * Sets the byte[] array to the File we wish to send via the readAllBytes method.
 	 * @param args
 	 */
-	public void setFileContent(String file) {
+	public synchronized void setFileContent(String file) {
 		try {
 			this.fileContent = Files.readAllBytes(new File(file).toPath());
 		} catch (IOException e) {
@@ -68,7 +68,7 @@ public class Client {
 	 * @return
 	 * @throws IOException
 	 */
-	public byte[] serializeByteArray(Packet packet) throws IOException {
+	private synchronized byte[] serializeByteArray(Packet packet) throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 	    ObjectOutputStream oos = new ObjectOutputStream(bos);
 	    oos.writeObject(packet);
@@ -77,7 +77,7 @@ public class Client {
 		return dataWithHeader;
 	}
 	
-	public Packet deserializeByteArray(DatagramPacket dp) throws IOException, ClassNotFoundException {
+	private synchronized Packet deserializeByteArray(DatagramPacket dp) throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
         ObjectInputStream ois = new ObjectInputStream(bis);
         Packet deserializedPacket = (Packet) ois.readObject();
@@ -91,7 +91,7 @@ public class Client {
 	 * 
 	 * @throws SocketException
 	 */
-	public void sendPacket() throws IOException, ClassNotFoundException {
+	public synchronized void sendPacket() throws IOException, ClassNotFoundException {
 		boolean timedOut = false; //Use this boolean to determine if timed out? Resets to false after a successful AckPacket
 		long startTime = System.currentTimeMillis();
 		DatagramPacket requestPacket;
@@ -104,7 +104,7 @@ public class Client {
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
-			System.out.print("statusIdentifier is " + statusIdentifier);
+			System.out.println("statusIdentifier is (0:good, 1:drop, 2:corrupt)" + statusIdentifier);
 			if (statusIdentifier == 1) { //We drop. try to wait and receive. Should always go to timeout
 					timedOut = receiveAckPacket(startTime);
 					printSendStatus(statusIdentifier, startTime, timedOut);
@@ -129,7 +129,7 @@ public class Client {
 		datagramSocket.send(flagPacket); // Send an empty packet to denote no data left to send. (Our flag)
 	}
 	
-	public boolean receiveAckPacket(long timerStartTime) throws SocketException, IOException, ClassNotFoundException {
+	public synchronized boolean receiveAckPacket(long timerStartTime) throws SocketException, IOException, ClassNotFoundException {
 		try {
 			datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
 			DatagramPacket responsePacket = new DatagramPacket(new byte[1024], 1024);
@@ -161,28 +161,21 @@ public class Client {
 	 */
 	private synchronized boolean checkAckPacket(DatagramPacket responsePacket, long timerStartTime) throws ClassNotFoundException, IOException {
 		Packet ackPacket = deserializeByteArray(responsePacket);
-		if (ackPacket.getAckno() == seqnoCounter) { //Server got good AckPacket
-			
-		}
-		else if (ackPacket.getAckno() == seqnoCounter) {
-			
-		}
-		else if (ackPacket.getAckno() == seqnoCounter) {
-	
-		}
-		
+		System.out.println("null? " + (ackPacket.getData() == null));
+		System.out.println("Checksum " + ackPacket.getCksum() + " good ? " +(ackPacket.getCksum() == 0));
+		System.out.println("Seqno == ackNo? " + (ackPacket.getAckno() == seqnoCounter));
 		if (ackPacket.getData() == null && ackPacket.getCksum() == 0) { //Our len will be == 8 then
 			if (ackPacket.getAckno() == seqnoCounter) {
-				printAckReceiveStatus(ackPacket.getAckno() , timerStartTime, 0);//Good ackPacket, move wind
+				printAckReceiveStatus(ackPacket.getAckno() , 0);//Good ackPacket, move wind
 				return true;
 			}
 			else {
-				printAckReceiveStatus(ackPacket.getAckno() , timerStartTime, 2);//good ackpacket but dupe. getAckNo < seqno
+				printAckReceiveStatus(ackPacket.getAckno() , 2);//good ackpacket but dupe. getAckNo < seqno
 				return false;
 			}
 		}
 		else { //Our packet was corrupted, extra data[] detected or checksum is not good or seqno != ackno return false
-			printAckReceiveStatus(ackPacket.getAckno() , timerStartTime, 1); //Corrupted ackpacket
+			printAckReceiveStatus(ackPacket.getAckno() , 1); //Corrupted ackpacket
 			return false;
 		}
 	}
@@ -212,18 +205,17 @@ public class Client {
 	 * @param request: the DatagramPacket whose information we are printing.
 	 * @param num: 
 	 */
-	private void printSendStatus(int statusN, long timerStartTime, boolean timedOutStatus) {
+	private synchronized void printSendStatus(int statusN, long timerStartTime, boolean timedOutStatus) {
 		String packetStatus = "";
 		long timeToSend = System.currentTimeMillis() - timerStartTime;
-		System.out.println("statusN is " + statusN);
 		if (statusN == 1) {
-			packetStatus = "DROP";
+			packetStatus += "DROP";
 		}
 		else if (statusN == 2) {
-			packetStatus = "ERR";
+			packetStatus += "ERR";
 		}
 		else if (statusN == 0) {
-			packetStatus = "SENT";
+			packetStatus += "SENT";
 		}
 		String status = !timedOutStatus ? "SENDing" : "ReSend";
 		System.out.println(String.format("%s %d %d : %d %d %s", 
@@ -235,24 +227,24 @@ public class Client {
 	 * @param request: the DatagramPacket whose information we are printing.
 	 * @param num: 
 	 */
-	private void printAckReceiveStatus(int acknoRec , long timerStartTime, int statusNo) {
+	private synchronized void printAckReceiveStatus(int acknoRec, int statusNo) {
 		String packetStatus = "";
-		long timeToSend = System.currentTimeMillis() - timerStartTime;
 		System.out.println("acknoRec is " + acknoRec);
+		System.out.println("ackRecStatusNo is " + statusNo);
 		if (statusNo == 0) {
-			packetStatus = "MoveWnd";
+			packetStatus += "MoveWnd";
 		}
-		else if (acknoRec == 1) { //AckPacket was corrupted.
-			packetStatus = "ErrAck";
+		else if (statusNo == 1) { //AckPacket was corrupted.
+			packetStatus += "ErrAck";
 		}
-		else if (acknoRec == 2) { //AckPacket dupe
-			packetStatus = "DuplAck";
+		else if (statusNo == 2) { //AckPacket dupe
+			packetStatus += "DuplAck";
 		}
 		System.out.println(String.format("AckRcvd %d %s", acknoRec, packetStatus));	
 	}
 	
 	// TODO: IMPLEMENT ON SERVER SIDE send the file name string to server there first. May not need
-	private void sendFileName(String fileName) {
+	private synchronized void sendFileName(String fileName) {
 		DatagramPacket sendFileNamePacket = new DatagramPacket(fileName.getBytes(), fileName.getBytes().length,
 				inetAddress, DEFAULT_PORT);
 		try {
