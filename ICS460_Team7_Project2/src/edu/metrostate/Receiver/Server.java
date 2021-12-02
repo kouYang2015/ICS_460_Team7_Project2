@@ -44,14 +44,13 @@ public class Server {
 	public void receivePacket() throws ClassNotFoundException {
 		int checkSum;
 		int sentAckNoInt;
+		long startTime = System.currentTimeMillis();
 		while(true) {
 			try {
 				//Receive request and create a DatagramPacket. Then write it to file.
 				DatagramPacket requestPacket = new DatagramPacket(buffer, buffer.length);
 				//TODO: ADD AN IF HERE TO BREAK OUT OF LOOP IF BUFFER LENTGTH IS 0
-				System.out.println("Waiting to receive");
 				datagramSocket.receive(requestPacket);
-				System.out.println("Received Packet");
 				if (requestPacket.getLength() == 0) {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 					break;
@@ -66,41 +65,35 @@ public class Server {
 //				System.out.println(deserializeByteArray(requestPacket).getSeqno());
 //				System.out.println(deserializeByteArray(requestPacket).getData().length);
 				if (checkSum == 1 || newPacket.getLen() != newPacket.getData().length + 12) { //if requestPacket is corrupted
-					System.out.println("Bad packet");
+					printWhatWasReceived(startTime, 2);
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
+					printWhatWasReceived(startTime, 1);
 					Packet dataPacket = createAckPacket(ackNo);
 					int statusIdentifier = dataPacket.getStatus(corruptChance);
-					System.out.println(statusIdentifier);
-					System.out.println("In duplicate if");
-					System.out.println(ackNo);
 
 					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
-					case (1): continue;
-					case (2): //print corrupt
-					default: //print
+					case (1): printResponse(startTime, 1); continue;
+					case (2): printResponse(startTime, 2);
+					default: printResponse(startTime, 0);
 					}
 					responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length,
 							requestPacket.getAddress(), requestPacket.getPort());
 					datagramSocket.send(responsePacket);
 				} else { //if it is sent correctly
-					System.out.println("Sending response packet");
+					printWhatWasReceived(startTime, 0);
 					Packet dataPacket = createAckPacket(this.ackNo);
 					writeToFile(fileReceived, deserializeByteArray(requestPacket).getData());
 					int statusIdentifier = dataPacket.getStatus(corruptChance);
-					System.out.println(statusIdentifier);
-					System.out.println(ackNo);
 					
 					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
-					case (1): continue;
-					case (2): //print
-					default: //print
+					case (1): printResponse(startTime, 1); continue;
+					case (2): printResponse(startTime, 2);
+					default: printResponse(startTime, 0);
 					}
 					ackNo++;
 					responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length,
 							requestPacket.getAddress(), requestPacket.getPort());
-					long startTime = System.currentTimeMillis();
 					datagramSocket.send(responsePacket);
-					System.out.println("Sent response packet");
 				}
 				
 			} catch (IOException e) {
@@ -177,6 +170,28 @@ public class Server {
 		} else {
 			return 0;
 		}
+	}
+	
+	private void printWhatWasReceived(long startTimer, int receivedCode) {
+		String firstCode, errorCode;
+		long timeReceived = System.currentTimeMillis() - startTimer;
+		switch (receivedCode) {
+		case (1): firstCode = "DUPL"; errorCode = "!Seq";
+		case (2): firstCode = "RECV"; errorCode = "CRPT";
+		default: firstCode = "RECV"; errorCode = "RECV";
+		}
+		System.out.println(firstCode + " " + timeReceived + " " + ackNo + " " + errorCode);
+	}
+	
+	private void printResponse(long startTimer, int sentCode) {
+		String errorCode;
+		long timeSent = System.currentTimeMillis() - startTimer;
+		switch (sentCode) {
+		case (1): errorCode = "DROP";
+		case (2): errorCode = "ERR";
+		default: errorCode = "SENT";
+		}
+		System.out.println(String.format("%s %s %d %d %s", "SENDing", "ACK", ackNo, timeSent, errorCode));
 	}
 	
 	public static void main(String[] args) throws IOException, ClassNotFoundException {

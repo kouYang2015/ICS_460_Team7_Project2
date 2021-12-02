@@ -222,18 +222,6 @@ public class Client {
 		System.out.println("Sent filepath: " + fileName);
 	}
 	
-	private int corrupt() {
-		if (Math.random() < corruptChance) {
-			if (Math.random() < .5) {
-				return 1;
-			} else {
-				return 2;
-			}
-		} else {
-			return 0;
-		}
-	}
-	
 	/**
 	 * Main method. Executes the rest of the program when user inputs the file from cmd line.
 	 * @param args
