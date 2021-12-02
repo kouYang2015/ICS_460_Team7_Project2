@@ -296,7 +296,11 @@ public class Client {
 				i += 2;
 			} else {
 				if (inetAddress == null) {
+					if (args[i].equals("localhost")) {
+						inetAddress = InetAddress.getLocalHost();
+					} else {
 					inetAddress = InetAddress.getByAddress(args[i].getBytes());
+					}
 				} else {
 					port = Integer.parseInt(args[i]);
 				}
