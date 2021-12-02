@@ -33,7 +33,15 @@ public class Client {
 	private int seqnoCounter = 1;
 	private byte[] fileContent;	//total number of bytes in file
 	
-	
+	/**
+	 * TODO: COMPLETE
+	 * @param inetAddress
+	 * @param packetSize
+	 * @param timeout
+	 * @param corruptchance
+	 * @param port
+	 * @throws SocketException
+	 */
 	public Client(InetAddress inetAddress, int packetSize, int timeout, double corruptchance, int port) throws SocketException {
 		super();
 		System.out.println(inetAddress.getHostName());
@@ -67,6 +75,7 @@ public class Client {
 	}
 
 	/**
+	 * TODO: COMPLETE
 	 * Turns the Packet object into a byte[].
 	 * @param packet
 	 * @return
@@ -81,6 +90,13 @@ public class Client {
 		return dataWithHeader;
 	}
 	
+	/**
+	 * TODO: COMPLETE
+	 * @param dp
+	 * @return
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
 	private synchronized Packet deserializeByteArray(DatagramPacket dp) throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
         ObjectInputStream ois = new ObjectInputStream(bis);
@@ -133,7 +149,15 @@ public class Client {
 		datagramSocket.send(flagPacket); // Send an empty packet to denote no data left to send. (Our flag)
 	}
 	
-	public synchronized boolean receiveAckPacket(long timerStartTime) throws SocketException, IOException, ClassNotFoundException {
+	/**
+	 * TODO: COMPLETE
+	 * @param timerStartTime
+	 * @return
+	 * @throws SocketException
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
+	private synchronized boolean receiveAckPacket(long timerStartTime) throws SocketException, IOException, ClassNotFoundException {
 		try {
 			datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
 			DatagramPacket responsePacket = new DatagramPacket(new byte[1024], 1024);
@@ -155,8 +179,8 @@ public class Client {
 	
 	/**
 	 * This method checks if the AckPacket we received from the Server/Receiver is not corrupted, has the correct length of 8, 
-	 * and makes sure the ackNo received is equal to the seqnoCounter+1 indicating that the server successfully received the correct
-	 * seqNo in the previous packet.
+	 * and makes sure the ackNo received is equal to the seqnoCounter+1 indicating that the server successfully received the 
+	 * correct seqNo in the previous packet.
 	 * @param ackPacket: a DatagramPacket that contains the byte[] of data received from the Server/Receiver.
 	 * @return	true: iff the checkSum is 0, len is 8, and ackNo is seqnoCounter+1.
 	 * 			false: iff the checkSum is not 0 or len is not 8 or ackNo is not seqnoCounter+1. 
@@ -185,19 +209,21 @@ public class Client {
 	}
 	
 	/**
-	 * Creates a Packet object using a file's byte[] beginning from an offset number.
-	 * @param file
-	 * @param offset
-	 * @param ackno
-	 * @param seqno
-	 * @param byteSize
-	 * @return
+	 * Creates a Packet object using a file's byte[] beginning from an offset number. Then calls a constructor in Packet. 
+	 * This Packet represents a DataPacket.
+	 * @param file the whole byte[] of the file to be sent to the Server.
+	 * @param offset the starting index of the file byte[].
+	 * @param ackno initializes this.ackno.
+	 * @param seqno initializes this.seqno.
+	 * @param byteSize the size of this.data.
+	 * @return the Packet representing a DataPacket.
 	 */
 	private synchronized Packet createDataPacket(byte[] file, int offset, int ackno, int seqno, int byteSize) {
-		int dataIndex = 0;
+		int dataIndex = 0; // Goes from 0 - byteSize
 		byte[] data = new byte[byteSize];
+		// Sets the byte beginning at file[offset] up to file[offset+byteSize] to data[dataIndex]
 		for (int i = offset; i < offset+byteSize; i++) {
-			data[dataIndex] = file[i];
+			data[dataIndex] = file[i]; 
 			dataIndex++;
 		}
 		Packet newPacket = new Packet(ackno, seqno, data);
@@ -205,20 +231,23 @@ public class Client {
 	}
 	
 	/**
-	 * Method used to print to console, what occurred to the DatagramPacket.
-	 * @param request: the DatagramPacket whose information we are printing.
-	 * @param num: 
+	 * Helper Method. Used to print to console, what occurred to the DatagramPacket containing the serialized Packet object 
+	 * representing a DataPacket.
+	 * @param dataPackStatus the int value representing the status of the DataPacket after going through the corruption method.
+	 * @param timerStartTime the current time in ms.
+	 * @param timedOutStatus the status of if the timedOut was true or not. If true, we are resending. If false, we are sending
+	 * 		a new seqno DataPacket.
 	 */
-	private synchronized void printSendStatus(int statusN, long timerStartTime, boolean timedOutStatus) {
+	private synchronized void printSendStatus(int dataPackStatus, long timerStartTime, boolean timedOutStatus) {
 		String packetStatus = "";
 		long timeToSend = System.currentTimeMillis() - timerStartTime;
-		if (statusN == 1) {
+		if (dataPackStatus == 1) {
 			packetStatus += "DROP";
 		}
-		else if (statusN == 2) {
+		else if (dataPackStatus == 2) {
 			packetStatus += "ERR";
 		}
-		else if (statusN == 0) {
+		else if (dataPackStatus == 0) {
 			packetStatus += "SENT";
 		}
 		String status = !timedOutStatus ? "SENDing" : "ReSend";
@@ -227,27 +256,28 @@ public class Client {
 	}
 	
 	/**
-	 * Method used to print to console, what occurred to the DatagramPacket.
-	 * @param request: the DatagramPacket whose information we are printing.
-	 * @param num: 
+	 * Helper Method. Used to print information about the AckPacket received depending on the ackStatus.
+	 * @param acknoRec the ackno from the AckPacket received.
+	 * @param ackStatus the status of the validation of the AckPacket.
 	 */
-	private synchronized void printAckReceiveStatus(int acknoRec, int statusNo) {
+	private synchronized void printAckReceiveStatus(int acknoRec, int ackStatus) {
 		String packetStatus = "";
-		System.out.println("acknoRec is " + acknoRec);
-		System.out.println("ackRecStatusNo is " + statusNo);
-		if (statusNo == 0) {
-			packetStatus += "MoveWnd";
+		if (ackStatus == 0) {
+			packetStatus += "MoveWnd"; //AckPacket accepted with no corruption.
 		}
-		else if (statusNo == 1) { //AckPacket was corrupted.
+		else if (ackStatus == 1) { //AckPacket was corrupted.
 			packetStatus += "ErrAck";
 		}
-		else if (statusNo == 2) { //AckPacket dupe
+		else if (ackStatus == 2) { //AckPacket dupe obtained.
 			packetStatus += "DuplAck";
 		}
 		System.out.println(String.format("AckRcvd %d %s", acknoRec, packetStatus));	
 	}
 	
-	// TODO: IMPLEMENT ON SERVER SIDE send the file name string to server there first. May not need
+	/**
+	 * Sends the filename obtain in a DatagramPacket to Server.java.
+	 * @param fileName the filename obtain from user's input.
+	 */
 	private synchronized void sendFileName(String fileName) {
 		DatagramPacket sendFileNamePacket = new DatagramPacket(fileName.getBytes(), fileName.getBytes().length,
 				inetAddress, DEFAULT_PORT);
@@ -257,14 +287,13 @@ public class Client {
 			System.out.println("FileNamePacket unsuccessful");
 			e.printStackTrace();
 		}
-		System.out.println("Sent filepath: " + fileName);
 	}
 	
 	/**
-	 * Main method. Executes the rest of the program when user inputs the file from cmd line.
-	 * @param args
-	 * @throws IOException 
-	 * @throws ClassNotFoundException 
+	 * Main method. Used to call methods from Client.java to implement stop-and-wait UDP protocol.
+	 * @param args the user's input received from the cmd line.
+	 * @throws IOException thrown when inputs do not match Socket/OutputStream param or if IP Address is illegal length.
+	 * @throws ClassNotFoundException Thrown when Packet.java class cannot be found.
 	 */
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		int packetSize = -1;
