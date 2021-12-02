@@ -194,7 +194,6 @@ public class Server {
 	private synchronized void printDataPacket(long startTimer, int recStatus, int seqnoRec) {
 		String firstCode = "", errorCode = "";
 		long timeReceived = System.currentTimeMillis() - startTimer;
-		System.out.println(recStatus);
 		if (recStatus == 1) {
 			// Received a non-corrupted duplicate DataPacket.
 			firstCode += "DUPL";
