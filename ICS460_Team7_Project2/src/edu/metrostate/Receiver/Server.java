@@ -34,31 +34,40 @@ public class Server {
 		this.corruptChance = (corruptchance == -1 ? DEFAULT_CORRUPTCHANCE : corruptchance);
 		this.port = (port == -1 ? DEFAULT_PORT : port);
 		this.datagramSocket = new DatagramSocket(this.port);
+		System.out.println(this.inetAddress.getHostName());
+		System.out.println(this.port);
 	}
 	
 	public void receivePacket() {
 		byte[] checkSumByte = new byte[2];
-		byte[] lenByte = new byte[4];
+		byte[] lenByte = new byte[2];
 		byte[] sentAckNo = new byte[4];
 		byte[] sentSeqNo = new byte[4];
 		int checkSum;
 		int sentAckNoInt;
+		byte[] dataReceived;
 		while(true) {
 			try {
 				//Receive request and create a DatagramPacket. Then write it to file.
 				DatagramPacket requestPacket = new DatagramPacket(buffer, buffer.length);
 				//TODO: ADD AN IF HERE TO BREAK OUT OF LOOP IF BUFFER LENTGTH IS 0
+				System.out.println("Waiting to receive");
 				datagramSocket.receive(requestPacket);
+				System.out.println("Received Packet");
 				if (requestPacket.getLength() == 0) {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 					break;
 				}
 				ByteBuffer bb = ByteBuffer.wrap(requestPacket.getData());
-				bb.get(checkSumByte, 0, checkSumByte.length); //grab checksum bytes
-				bb.get(lenByte, 0, lenByte.length); //grab length bytes
-				bb.get(sentAckNo, 0, sentAckNo.length); //grab ackNo bytes
-				bb.get(sentSeqNo, 0, sentSeqNo.length); //grab seqNo bytes
-				bb.get(buffer, 0, ByteBuffer.wrap(lenByte).getInt() - 12); //grab the rest of the data, which is len -12 in length
+                bb.get(checkSumByte, 0, checkSumByte.length); //grab checksum bytes
+                bb.get(lenByte, 0, lenByte.length); //grab length bytes
+                bb.get(sentAckNo, 0, sentAckNo.length); //grab ackNo bytes
+                bb.get(sentSeqNo, 0, sentSeqNo.length); //grab seqNo bytes
+                int convertLen = lenByte[0];
+                System.out.println(convertLen);
+                dataReceived = new byte[convertLen - 12];
+				System.out.println(dataReceived.length);
+                bb.get(dataReceived, 0, dataReceived.length); //grab the rest of the data, which is len -12 in
 				
 				checkSum = ByteBuffer.wrap(checkSumByte).getInt();
 				sentAckNoInt = ByteBuffer.wrap(sentAckNo).getInt();
@@ -68,6 +77,7 @@ public class Server {
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
 					
 				} else { //if it is sent correctly
+					System.out.println("Sending response packet");
 					Packet dataPacket = new Packet(ackNo);
 					writeToFile(fileReceived, requestPacket);
 					startOffset += requestPacket.getLength();
@@ -75,6 +85,7 @@ public class Server {
 					DatagramPacket responsePacket = new DatagramPacket(dataPacket.turnIntoByteArray(), dataPacket.getLen(), inetAddress, port);
 					long startTime = System.currentTimeMillis();
 					datagramSocket.send(responsePacket);
+					System.out.println("Sent response packet");
 				}
 				
 			} catch (IOException e) {

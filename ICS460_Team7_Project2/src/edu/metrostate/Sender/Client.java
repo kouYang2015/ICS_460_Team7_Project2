@@ -40,6 +40,8 @@ public class Client {
 		this.corruptChance = (corruptchance == -1 ? DEFAULT_CORRUPTCHANCE : corruptchance);
 		this.port = (port == -1 ? DEFAULT_PORT : port);
 		this.datagramSocket = new DatagramSocket(0);
+		System.out.println(this.inetAddress.getHostName());
+		System.out.println(this.port);
 //		if (packetSize == -1) {
 //			packetSize = DEFAULT_PACKET_SIZE;
 //		} else if (packetSize > 500) {
@@ -96,6 +98,7 @@ public class Client {
 				packetSize = fileContent.length - startOffset;
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
+			System.out.println(dataPacket.turnIntoByteArray().length);
 			DatagramPacket requestPacket = new DatagramPacket(dataPacket.turnIntoByteArray(), packetSize, inetAddress,
 					port);
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
@@ -202,14 +205,13 @@ public class Client {
 		case(2): packetStatus = "ERR";
 		default: packetStatus = "SENT";
 		}
-		String status = timedOutStatus ? "SENDing" : "ReSend";
+		String status = !timedOutStatus ? "SENDing" : "ReSend";
 		System.out.println(String.format("%s %d %d : %d %d %s", 
 				status, seqnoCounter, startOffset, startOffset+request.getLength()-1, timeToSend, packetStatus));	//seqno, startOffset : endOffset, time sent in ms, status of packet (Sent, drop, error)
 	}
 	
 	// TODO: IMPLEMENT ON SERVER SIDE send the file name string to server there first. May not need
-	private void sendFileName(File file) {
-		String fileName = file.getName();
+	private void sendFileName(String fileName) {
 		DatagramPacket sendFileNamePacket = new DatagramPacket(fileName.getBytes(), fileName.getBytes().length,
 				inetAddress, DEFAULT_PORT);
 		try {
@@ -270,6 +272,7 @@ public class Client {
 		
 			Client sender = new Client(inetAddress, packetSize, timeout, corruptchance, port);
 			sender.setFileContent(args[i]);
+			sender.sendFileName(args[i]);
 			sender.sendPacket();
 	}
 	
