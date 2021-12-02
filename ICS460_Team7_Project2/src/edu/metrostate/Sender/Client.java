@@ -97,10 +97,12 @@ public class Client {
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
+			System.out.print("statusIdentifier is " + statusIdentifier);
 			if (statusIdentifier == 1) {
 				try {
 					Thread.sleep(timeout);
 					timedOut = true;
+					printSendStatus(statusIdentifier, startTime, timedOut);
 					continue;
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -201,12 +203,17 @@ public class Client {
 	 * @param num: 
 	 */
 	private void printSendStatus(int statusN, long timerStartTime, boolean timedOutStatus) {
-		String packetStatus;
+		String packetStatus = "";
 		long timeToSend = System.currentTimeMillis() - timerStartTime;
-		switch(statusN){
-		case(1): packetStatus = "DROP";
-		case(2): packetStatus = "ERR";
-		default: packetStatus = "SENT";
+		System.out.println("statusN is " + statusN);
+		if (statusN == 1) {
+			packetStatus = "DROP";
+		}
+		else if (statusN == 2) {
+			packetStatus = "ERR";
+		}
+		else if (statusN == 0) {
+			packetStatus = "SENT";
 		}
 		String status = !timedOutStatus ? "SENDing" : "ReSend";
 		System.out.println(String.format("%s %d %d : %d %d %s", 
