@@ -41,16 +41,7 @@ public class Packet implements Serializable{
 	 * @return
 	 * @throws IOException
 	 */
-	public byte[] turnIntoByteArrayClient() throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-	    ObjectOutputStream oos = new ObjectOutputStream(bos);
-	    oos.writeObject(this);
-	    oos.flush();
-	    byte [] dataWithHeader = bos.toByteArray();
-		return dataWithHeader;
-	}
-	
-	public byte[] turnIntoByteArrayServer() throws IOException {
+	public byte[] toByteArray() throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 	    ObjectOutputStream oos = new ObjectOutputStream(bos);
 	    oos.writeObject(this);

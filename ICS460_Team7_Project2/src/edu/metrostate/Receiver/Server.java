@@ -23,7 +23,6 @@ public class Server {
 	private int port;
 	private DatagramSocket datagramSocket;
 	private byte[] buffer = new byte[1024];
-	private int startOffset = 0;
 	private int ackNo = 1;
 	private File fileReceived;
 	private double corruptChance;
@@ -43,13 +42,8 @@ public class Server {
 	}
 	
 	public void receivePacket() throws ClassNotFoundException {
-		byte[] checkSumByte = new byte[2];
-		byte[] lenByte = new byte[2];
-		byte[] sentAckNo = new byte[4];
-		byte[] sentSeqNo = new byte[4];
 		int checkSum;
 		int sentAckNoInt;
-		byte[] dataReceived;
 		while(true) {
 			try {
 				//Receive request and create a DatagramPacket. Then write it to file.
@@ -62,40 +56,25 @@ public class Server {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 					break;
 				}
-//				ByteBuffer bb = ByteBuffer.wrap(requestPacket.getData());
-//				System.out.println(bb.remaining());
-//                bb.get(checkSumByte, 0, checkSumByte.length); //grab checksum bytes
-//                System.out.println(lenByte);
-//                bb.get(lenByte, 0, lenByte.length); //grab length bytes
-//                bb.get(sentAckNo, 0, sentAckNo.length); //grab ackNo bytes
-//                bb.get(sentSeqNo, 0, sentSeqNo.length); //grab seqNo bytes
-//                int convertLen = lenByte[1];
-//                System.out.println(convertLen);
-//                dataReceived = new byte[convertLen - 12];
-//				System.out.println(dataReceived.length);
-//                bb.get(dataReceived, 0, dataReceived.length); //grab the rest of the data, which is len -12 in
-//				
-//				checkSum = ByteBuffer.wrap(checkSumByte).getInt();
-//				sentAckNoInt = ByteBuffer.wrap(sentAckNo).getInt();
-				
-				checkSum = deserializeByteArray(requestPacket).getCksum();
-				sentAckNoInt = deserializeByteArray(requestPacket).getAckno();
-				System.out.println(checkSum);
-				System.out.println(deserializeByteArray(requestPacket).getLen());
-				System.out.println(sentAckNoInt);
-				System.out.println(deserializeByteArray(requestPacket).getSeqno());
-				System.out.println(deserializeByteArray(requestPacket).getData().length);
-				if (checkSum == 1) { //if requestPacket is corrupted
-					
+				Packet newPacket = deserializeByteArray(requestPacket);
+				checkSum = newPacket.getCksum();
+				sentAckNoInt = newPacket.getAckno();
+//				System.out.println(checkSum);
+//				System.out.println(deserializeByteArray(requestPacket).getLen());
+//				System.out.println(sentAckNoInt);
+//				System.out.println(deserializeByteArray(requestPacket).getSeqno());
+//				System.out.println(deserializeByteArray(requestPacket).getData().length);
+				if (checkSum == 1 ) { //if requestPacket is corrupted
+					//TODO: send ackPacket back or do nothing?
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
 					
 				} else { //if it is sent correctly
 					System.out.println("Sending response packet");
-					Packet dataPacket = new Packet(ackNo);
+					Packet dataPacket = createAckPacket();
 					writeToFile(fileReceived, deserializeByteArray(requestPacket).getData());
-					startOffset += requestPacket.getLength();
 					ackNo++;
-					DatagramPacket responsePacket = new DatagramPacket(dataPacket.turnIntoByteArrayServer(), dataPacket.getLen(), inetAddress, port);
+					DatagramPacket responsePacket = new DatagramPacket(dataPacket.toByteArray(), dataPacket.toByteArray().length, 
+							requestPacket.getAddress(), requestPacket.getPort());
 					long startTime = System.currentTimeMillis();
 					datagramSocket.send(responsePacket);
 					System.out.println("Sent response packet");
@@ -124,10 +103,10 @@ public class Server {
         // base64 string to byte[]
         byte[] decodeFileName = Base64.getDecoder().decode(encodedB64FileName);
         String safeFileName = new String(decodeFileName); //Build string of decoded.
-		fileReceived = new File("new"+safeFileName);	//Sets the new file to String of our decoded byte[]
+		fileReceived = new File("image.jpg");	//Sets the new file to String of our decoded byte[]
 	}
 	
-	public Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {
+	private synchronized Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
         ObjectInputStream ois = new ObjectInputStream(bis);
         Packet deserializedPacket = (Packet) ois.readObject();
@@ -135,14 +114,21 @@ public class Server {
     }
 	
 	/**
+	 * Creates an AckPacket object.
+	 * @return Packet: The Packet object that represents an ackPacket.
+	 */
+	private synchronized Packet createAckPacket() {
+		Packet newPacket = new Packet(ackNo);
+		return newPacket;
+	}
+	
+	/**
 	 * Method used to concatenate new requestPacket byte data to the previous requestPacket. Also prints to console information
 	 * about packet#, start offset, end offset.
 	 * @param file
 	 * @param request
 	 */
-	public void writeToFile(File file, byte[] data) {
-		System.out.println(String.format("[Packet%d] - [start byte offset]: %d - [end byte offset]: %d", 
-				ackNo, startOffset, startOffset+data.length-1));
+	private synchronized void writeToFile(File file, byte[] data) {
 		try {
 			FileOutputStream writer = new FileOutputStream(file, true);
 			writer.write(data, 0, data.length);

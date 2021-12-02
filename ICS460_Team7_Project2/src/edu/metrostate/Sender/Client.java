@@ -1,5 +1,6 @@
 package edu.metrostate.Sender;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -8,11 +9,13 @@ import java.nio.file.Files;
 import edu.metrostate.Packet.Packet;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
 public class Client {
@@ -45,31 +48,6 @@ public class Client {
 		this.datagramSocket = new DatagramSocket(0);
 		System.out.println(this.inetAddress.getHostName());
 		System.out.println(this.port);
-//		if (packetSize == -1) {
-//			packetSize = DEFAULT_PACKET_SIZE;
-//		} else if (packetSize > 500) {
-//			packetSize = 500;
-//		}
-//		if (timeout == -1) {
-//			this.timeout = DEFAULT_TIMEOUT;
-//		} else {
-//			this.timeout = timeout;
-//		}
-//		if (corruptchance == -1) {
-//			this.corruptChance = DEFAULT_CORRUPTCHANCE;
-//		} else {
-//			this.corruptChance = corruptchance;
-//		}
-//		if (inetAddress == null) {
-//			try {
-//				inetAddress = InetAddress.getLocalHost();
-//			} catch (UnknownHostException e) {
-//				e.printStackTrace();
-//			}
-//		}
-//		if (port == -1) {
-//			this.port = DEFAULT_PORT;
-//		}
 	}
 	
 	/**
@@ -102,10 +80,11 @@ public class Client {
 	/**
 	 * Method used to send a requestPacket from Client to Server.
 	 * @throws IOException 
+	 * @throws ClassNotFoundException 
 	 * 
 	 * @throws SocketException
 	 */
-	public void sendPacket() throws IOException {
+	public void sendPacket() throws IOException, ClassNotFoundException {
 		boolean timedOut = false; //Use this boolean to determine if timed out? Resets to false after a successful AckPacket
 		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + packetSize); // TODO: DEBUG STATEMENT DELETE AFTER
 		while (true) {
@@ -143,7 +122,7 @@ public class Client {
 				else {
 					timedOut = true;
 				}
-			} catch (SocketException e) {
+			} catch (SocketTimeoutException e) {
 				timedOut = true;
 				continue;
 			} 
@@ -153,6 +132,13 @@ public class Client {
 		datagramSocket.send(flagPacket); // Send an empty packet to denote no data left to send. (Our flag)
 	}
 	
+	public Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream bis = new ByteArrayInputStream(dp.getData());
+        ObjectInputStream ois = new ObjectInputStream(bis);
+        Packet deserializedPacket = (Packet) ois.readObject();
+        return deserializedPacket;
+    }
+	
 	/**
 	 * This method checks if the AckPacket we received from the Server/Receiver is not corrupted, has the correct length of 8, 
 	 * and makes sure the ackNo received is equal to the seqnoCounter+1 indicating that the server successfully received the correct
@@ -160,22 +146,29 @@ public class Client {
 	 * @param ackPacket: a DatagramPacket that contains the byte[] of data received from the Server/Receiver.
 	 * @return	true: iff the checkSum is 0, len is 8, and ackNo is seqnoCounter+1.
 	 * 			false: iff the checkSum is not 0 or len is not 8 or ackNo is not seqnoCounter+1. 
+	 * @throws IOException 
+	 * @throws ClassNotFoundException 
 	 */
-	private synchronized boolean checkAckPacket(DatagramPacket ackPacket) {
+	private synchronized boolean checkAckPacket(DatagramPacket ackPacket) throws ClassNotFoundException, IOException {
 		//TODO: Turn this into a method? Check the checksum of AckPacket and len == 8. If good, then check ackNo from packet against seqnoCounter.
-		ByteBuffer bb = ByteBuffer.wrap(ackPacket.getData());
-		byte[] checksumByte = new byte[2];
-		byte[] lenByte = new byte[2];
-		bb.get(checksumByte, 0, checksumByte.length);	//Gets the first bit then move buffer location to 2. (beginning of len)
-		bb.get(lenByte, 0, lenByte.length);	//Gets the 3rd,4th bit then move buffer location to 4. (beginning of ackNo)
-		if (ByteBuffer.wrap(checksumByte).getInt() == 0 && ByteBuffer.wrap(lenByte).getInt() == 8) {
-			//Get ackNo from AckPacket. Check against seqNo. if Equal, increment by one both seqnoCounter and acknoCounter
-			byte[] acknoByte = new byte[4]; //Last 4 bit are ackno
-			bb.get(acknoByte, 0, acknoByte.length);
-			if(ByteBuffer.wrap(acknoByte).getInt() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
+//		ByteBuffer bb = ByteBuffer.wrap(ackPacket.getData());
+//		byte[] checksumByte = new byte[2];
+//		byte[] lenByte = new byte[2];
+//		bb.get(checksumByte, 0, checksumByte.length);	//Gets the first bit then move buffer location to 2. (beginning of len)
+//		bb.get(lenByte, 0, lenByte.length);	//Gets the 3rd,4th bit then move buffer location to 4. (beginning of ackNo)
+		if (deserializeByteArray(ackPacket).getCksum() == 0 && deserializeByteArray(ackPacket).getLen() == 8) {
+			if(deserializeByteArray(ackPacket).getAckno() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
 				return true;
 			}
 		}
+//		if (ByteBuffer.wrap(checksumByte).getInt() == 0 && ByteBuffer.wrap(lenByte).getInt() == 8) {
+//			//Get ackNo from AckPacket. Check against seqNo. if Equal, increment by one both seqnoCounter and acknoCounter
+//			byte[] acknoByte = new byte[4]; //Last 4 bit are ackno
+//			bb.get(acknoByte, 0, acknoByte.length);
+//			if(ByteBuffer.wrap(acknoByte).getInt() == seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
+//				return true;
+//			}
+//		}
 		return false;
 	}
 	
@@ -189,10 +182,13 @@ public class Client {
 	 * @return
 	 */
 	private synchronized Packet createDataPacket(byte[] file, int offset, int ackno, int seqno, int byteSize) {
-		ByteBuffer bb = ByteBuffer.wrap(file);
+		int dataIndex = 0;
 		byte[] data = new byte[byteSize];
+		for (int i = offset; i < offset+byteSize; i++) {
+			data[dataIndex] = file[i];
+			dataIndex++;
+		}
 		System.out.println("ByteBuffer data length is " + data.length); //TODO: delete
-		bb.get(data, 0, data.length);
 		Packet newPacket = new Packet(ackno, seqno, data);
 		return newPacket;
 	}
@@ -225,15 +221,16 @@ public class Client {
 			System.out.println("FileNamePacket unsuccessful");
 			e.printStackTrace();
 		}
-		System.out.println("Sent file: " + fileName);
+		System.out.println("Sent filepath: " + fileName);
 	}
 	
 	/**
 	 * Main method. Executes the rest of the program when user inputs the file from cmd line.
 	 * @param args
 	 * @throws IOException 
+	 * @throws ClassNotFoundException 
 	 */
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		int packetSize = -1;
 		int timeout = -1;
 		double corruptchance = -1;
@@ -275,10 +272,10 @@ public class Client {
 			}
 		}
 		
-			Client sender = new Client(inetAddress, packetSize, timeout, corruptchance, port);
-			sender.setFileContent(args[i]);
-			sender.sendFileName(args[i]);
-			sender.sendPacket();
+		Client sender = new Client(inetAddress, packetSize, timeout, corruptchance, port);
+		sender.setFileContent(args[i]);			
+		sender.sendFileName(args[i]);
+		sender.sendPacket();
 	}
 	
 }
