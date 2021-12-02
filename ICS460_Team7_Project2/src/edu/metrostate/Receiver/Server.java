@@ -36,17 +36,13 @@ public class Server {
 	 */
 	public Server(double corruptchance, InetAddress inetAddress, int port) throws SocketException {
 		super();
-		System.out.println(inetAddress.getHostName());
 		try {
 			this.inetAddress = (inetAddress == null ? inetAddress = InetAddress.getLocalHost() : inetAddress);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
-		System.out.println(inetAddress.getHostName());
 		this.corruptChance = (corruptchance == -1 ? DEFAULT_CORRUPTCHANCE : corruptchance);
-		System.out.println(port);
 		this.port = (port == -1 ? DEFAULT_PORT : port);
-		System.out.println(port);
 		this.datagramSocket = new DatagramSocket(this.port);
 	}
 

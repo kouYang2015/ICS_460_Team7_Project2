@@ -44,19 +44,15 @@ public class Client {
 	 */
 	public Client(InetAddress inetAddress, int packetSize, int timeout, double corruptchance, int port) throws SocketException {
 		super();
-		System.out.println(inetAddress.getHostName());
 		try {
 			this.inetAddress = (inetAddress == null ? inetAddress = InetAddress.getLocalHost() : inetAddress);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
-		System.out.println(inetAddress.getHostName());
 		this.packetSize = (packetSize == -1 ? DEFAULT_PACKET_SIZE : packetSize > 500 ? 500 : packetSize);
 		this.timeout = (timeout == -1 ? DEFAULT_TIMEOUT : timeout);
 		this.corruptChance = (corruptchance == -1 ? DEFAULT_CORRUPTCHANCE : corruptchance);
-		System.out.println(port);
 		this.port = (port == -1 ? DEFAULT_PORT : port);
-		System.out.println(port);
 		this.datagramSocket = new DatagramSocket(0);
 		System.out.println(this.inetAddress.getHostName());
 		System.out.println(this.port);
