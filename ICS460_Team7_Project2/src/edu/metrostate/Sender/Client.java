@@ -3,7 +3,6 @@ package edu.metrostate.Sender;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 
 import edu.metrostate.Packet.Packet;
@@ -112,8 +111,9 @@ public class Client {
 		boolean timedOut = false; //Use this boolean to determine if timed out? Resets to false after a successful AckPacket
 		long startTime = System.currentTimeMillis();
 		DatagramPacket requestPacket;
+		double allPacket = 1+Math.ceil(fileContent.length / packetSize);
 		while (true) {
-			if (seqnoCounter > Math.ceil(fileContent.length / packetSize)) { //Check if we sent all necessary packets
+			if (seqnoCounter > allPacket) { //Check if we sent all necessary packets
 				break;
 			}
 			if (fileContent.length - startOffset < packetSize) { //Checks if we can still send our packetSize. If not, reset packetSize to remaining fileContent length
@@ -155,23 +155,24 @@ public class Client {
 	 * @throws IOException
 	 * @throws ClassNotFoundException
 	 */
-	private synchronized boolean receiveAckPacket(long timerStartTime) throws SocketException, IOException, ClassNotFoundException {
+	private synchronized boolean receiveAckPacket(long timerStartTime)
+			throws SocketException, IOException, ClassNotFoundException {
 		try {
-			datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
+			// Sets timeout for receive() method. If timeout is reached, we continue with code.
+			datagramSocket.setSoTimeout(timeout);
 			DatagramPacket responsePacket = new DatagramPacket(new byte[1024], 1024);
 			datagramSocket.receive(responsePacket);
-			if (checkAckPacket(responsePacket, timerStartTime)) { 
-				startOffset += packetSize; 
+			if (checkAckPacket(responsePacket, timerStartTime)) {
+				startOffset += packetSize;
 				seqnoCounter++;
-				return false; //Ackpacket pack is good. Timeout is false, increment seqnoCounter, incrementOffset
+				return false; // Ackpacket pack is good. Timeout is false, increment seqnoCounter, incrementOffset
+			} else {
+				return true; // Ackpacket was corrupted or a dupe was found. Will timeout and resend same packet.
 			}
-			else {
-				return true; //Ackpacket was corrupted or a dupe was found. Will timeout and resend same packet.
-			}
-		} catch (SocketTimeoutException e) { //Ackpacket was dropped on server side. Timeout and resend same packet
+		} catch (SocketTimeoutException e) { // Ackpacket was dropped on server side. Timeout and resend same packet
 			System.out.println("Timedout " + seqnoCounter);
 			return true;
-		} 
+		}
 	}
 	
 	/**
@@ -184,20 +185,20 @@ public class Client {
 	 * @throws IOException
 	 * @throws ClassNotFoundException 
 	 */
-	private synchronized boolean checkAckPacket(DatagramPacket responsePacket, long timerStartTime) throws ClassNotFoundException, IOException {
+	private synchronized boolean checkAckPacket(DatagramPacket responsePacket, long timerStartTime)
+			throws ClassNotFoundException, IOException {
 		Packet ackPacket = deserializeByteArray(responsePacket);
-		if (ackPacket.getData() == null && ackPacket.getCksum() == 0) { //Our len will be == 8
+		if (ackPacket.getData() == null && ackPacket.getCksum() == 0) { // Our len will be == 8
 			if (ackPacket.getAckno() == seqnoCounter) {
-				printAckReceiveStatus(ackPacket.getAckno() , 0);//Good AckPacket, move window
+				printAckReceiveStatus(ackPacket.getAckno(), 0);// Good AckPacket, move window
 				return true;
-			}
-			else {
-				printAckReceiveStatus(ackPacket.getAckno() , 2);// Non-Corrupted AckPacket but dupe. getAckNo < seqno
+			} else {
+				printAckReceiveStatus(ackPacket.getAckno(), 2);// Non-Corrupted AckPacket but dupe. getAckNo < seqno
 				return false;
 			}
-		}
-		else { //Our packet was corrupted, extra data[] detected or checksum is not good or seqno != ackno return false
-			printAckReceiveStatus(ackPacket.getAckno() , 1); //Corrupted AckPacket
+		} else { // Our packet was corrupted, extra data[] detected or checksum is not good or
+					// seqno != ackno return false
+			printAckReceiveStatus(ackPacket.getAckno(), 1); // Corrupted AckPacket
 			return false;
 		}
 	}
@@ -215,9 +216,10 @@ public class Client {
 	private synchronized Packet createDataPacket(byte[] file, int offset, int ackno, int seqno, int byteSize) {
 		int dataIndex = 0; // Goes from 0 - byteSize
 		byte[] data = new byte[byteSize];
-		// Sets the byte beginning at file[offset] up to file[offset+byteSize] to data[dataIndex]
-		for (int i = offset; i < offset+byteSize; i++) {
-			data[dataIndex] = file[i]; 
+		// Sets the byte beginning at file[offset] up to file[offset+byteSize] to
+		// data[dataIndex]
+		for (int i = offset; i < offset + byteSize; i++) {
+			data[dataIndex] = file[i];
 			dataIndex++;
 		}
 		Packet newPacket = new Packet(ackno, seqno, data);
@@ -237,16 +239,14 @@ public class Client {
 		long timeToSend = System.currentTimeMillis() - timerStartTime;
 		if (dataPackStatus == 1) {
 			packetStatus += "DROP";
-		}
-		else if (dataPackStatus == 2) {
+		} else if (dataPackStatus == 2) {
 			packetStatus += "ERR";
-		}
-		else if (dataPackStatus == 0) {
+		} else if (dataPackStatus == 0) {
 			packetStatus += "SENT";
 		}
 		String status = !timedOutStatus ? "SENDing" : "ReSend";
-		System.out.println(String.format("%s %d %d : %d %d %s", 
-				status, seqnoCounter, startOffset, startOffset+packetSize-1, timeToSend, packetStatus));	//seqno, startOffset : endOffset, time sent in ms, status of packet (Sent, drop, error)
+		System.out.println(String.format("%s %d %d : %d %d %s", status, seqnoCounter, startOffset,
+				startOffset + packetSize - 1, timeToSend, packetStatus));
 	}
 	
 	/**
@@ -257,15 +257,13 @@ public class Client {
 	private synchronized void printAckReceiveStatus(int acknoRec, int ackStatus) {
 		String packetStatus = "";
 		if (ackStatus == 0) {
-			packetStatus += "MoveWnd"; //AckPacket accepted with no corruption.
-		}
-		else if (ackStatus == 1) { //AckPacket was corrupted.
+			packetStatus += "MoveWnd"; // AckPacket accepted with no corruption.
+		} else if (ackStatus == 1) { // AckPacket was corrupted.
 			packetStatus += "ErrAck";
-		}
-		else if (ackStatus == 2) { //AckPacket dupe obtained.
+		} else if (ackStatus == 2) { // AckPacket dupe obtained.
 			packetStatus += "DuplAck";
 		}
-		System.out.println(String.format("AckRcvd %d %s", acknoRec, packetStatus));	
+		System.out.println(String.format("AckRcvd %d %s", acknoRec, packetStatus));
 	}
 	
 	/**
@@ -326,7 +324,7 @@ public class Client {
 					if (args[i].equals("localhost")) {
 						inetAddress = InetAddress.getLocalHost();
 					} else {
-					inetAddress = InetAddress.getByAddress(args[i].getBytes());
+						inetAddress = InetAddress.getByAddress(args[i].getBytes());
 					}
 				} else {
 					port = Integer.parseInt(args[i]);
@@ -334,9 +332,9 @@ public class Client {
 				i++;
 			}
 		}
-		
+
 		Client sender = new Client(inetAddress, packetSize, timeout, corruptchance, port);
-		sender.setFileContent(args[i]);			
+		sender.setFileContent(args[i]);
 		sender.sendFileName(args[i]);
 		sender.sendPacket();
 	}

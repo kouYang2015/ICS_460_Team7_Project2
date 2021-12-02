@@ -1,8 +1,5 @@
 package edu.metrostate.Packet;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 public class Packet implements Serializable{
@@ -29,6 +26,7 @@ public class Packet implements Serializable{
 	
 	/**
 	 * Used by Server to create AckPackets. Contains only cksum, len, and ackno.
+	 * @param ackno initializes this.ackno to ackno.
 	 */
 	public Packet (int ackno) {
 		this.cksum = 0; //default value.

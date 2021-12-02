@@ -65,7 +65,7 @@ public class Server {
 			// Deserialize DatagramPacket object's byte[] data to obtain Packet object.
 			Packet dataPacket = deserializeByteArray(requestPacket);
 			seqnoRec = dataPacket.getSeqno();
-			//Validate DataPacket
+			// Validate DataPacket
 			if (dataPacket.getCksum() == 1 || dataPacket.getLen() != (dataPacket.getData().length + 12)) {
 				// DataPacket is corrupted. Don't create and send AckPacket back.
 				printDataPacket(startTime, 2, seqnoRec);
@@ -74,10 +74,10 @@ public class Server {
 				printDataPacket(startTime, 1, seqnoRec);
 				// Resend AckPacket with seqnoRec to inform Client to increment seqno.
 				sendAckPacket(requestPacket, seqnoRec, startTime);
-			} else { 
+			} else {
 				// Got a New good DataPacket. Increment ackNo by one.
 				printDataPacket(startTime, 0, seqnoRec);
-				//Write dataPacket byte[] data to fileReceived.
+				// Write dataPacket byte[] data to fileReceived.
 				writeToFile(fileReceived, dataPacket.getData());
 				ackNo++;
 				// Send AckPacket to Client.
@@ -258,7 +258,7 @@ public class Server {
 					if (args[i].equals("localhost")) {
 						inetAddress = InetAddress.getLocalHost();
 					} else {
-					inetAddress = InetAddress.getByAddress(args[i].getBytes());
+						inetAddress = InetAddress.getByAddress(args[i].getBytes());
 					}
 				} else {
 					port = Integer.parseInt(args[i]);
