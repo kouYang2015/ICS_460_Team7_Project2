@@ -2,7 +2,6 @@ package edu.metrostate.Receiver;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -11,7 +10,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.util.Base64;
 
 import edu.metrostate.Packet.Packet;
@@ -48,10 +46,9 @@ public class Server {
 			try {
 				//Receive request and create a DatagramPacket. Then write it to file.
 				DatagramPacket requestPacket = new DatagramPacket(buffer, buffer.length);
-				//TODO: ADD AN IF HERE TO BREAK OUT OF LOOP IF BUFFER LENTGTH IS 0
-				System.out.println("Waiting to receive");
+				System.out.println("Waiting to receive");//TODO: DEBUG STATEMENT DELETE AFTER
 				datagramSocket.receive(requestPacket);
-				System.out.println("Received Packet");
+				System.out.println("Received Packet");//TODO: DEBUG STATEMENT DELETE AFTER
 				if (requestPacket.getLength() == 0) {
 					System.out.println("Flag packet:" + requestPacket.getData() + " " + requestPacket.getLength()); //TODO: DEBUG STATEMENT DELETE AFTER
 					break;
@@ -66,13 +63,13 @@ public class Server {
 //				System.out.println(deserializeByteArray(requestPacket).getSeqno());
 //				System.out.println(deserializeByteArray(requestPacket).getData().length);
 				if (checkSum == 1 || newPacket.getLen() != newPacket.getData().length + 12) { //if requestPacket is corrupted
-					System.out.println("Bad packet");
+					System.out.println("Bad packet");//TODO: DEBUG STATEMENT DELETE AFTER
 				} else if (sentAckNoInt < ackNo) { //if duplicate seqNo packets are received
+					System.out.println("In duplicate if");//TODO: DEBUG STATEMENT DELETE AFTER
 					Packet dataPacket = createAckPacket(ackNo);
 					int statusIdentifier = dataPacket.getStatus(corruptChance);
-					System.out.println(statusIdentifier);
-					System.out.println("In duplicate if");
-					System.out.println(ackNo);
+					System.out.println("statusIdentifier:" + statusIdentifier);//TODO: DEBUG STATEMENT DELETE AFTER
+					System.out.println("ackNo " + ackNo);//TODO: DEBUG STATEMENT DELETE AFTER
 
 					switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
 					case (1): continue;

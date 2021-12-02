@@ -97,51 +97,45 @@ public class Client {
 			}
 			Packet dataPacket = createDataPacket(fileContent, startOffset, seqnoCounter, seqnoCounter, packetSize);
 			int statusIdentifier = dataPacket.getStatus(corruptChance);
-			switch (statusIdentifier) { // Right now it is set to return 0 only -> default.
-			case (1): try {
+			if (statusIdentifier == 1) {
+				try {
 					Thread.sleep(timeout);
 					timedOut = true;
 					continue;
-				} catch (InterruptedException e1) {
-					e1.printStackTrace();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
-			case (2): if (Math.random() < .5) { // TODO: Send packet but it got corrupted. Use method printCorruptStatus
-					dataPacket.setCksum();
-					requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
-							port);
-				} else {
-					dataPacket.setData(new byte[1000]);
-					requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
-							port);
-				}
-			default: requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), turnIntoByteArrayClient(dataPacket).length, inetAddress,
-					port); // TODO: Send packet with no corruption.
 			}
-
-			
-			datagramSocket.send(requestPacket);
-			printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
-			try {
-				datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
-				DatagramPacket responsePacket = new DatagramPacket(new byte[packetSize], packetSize);
-				datagramSocket.receive(responsePacket);
-				System.out.println(checkAckPacket(responsePacket));
-				if (checkAckPacket(responsePacket)) {
-					startOffset += packetSize;
-					seqnoCounter++;
-					timedOut = false;
-				}
-				else {
-					timedOut = true;
-				}
-			} catch (SocketTimeoutException e) {
-				timedOut = true;
-				continue;
-			} 
+			else {
+				requestPacket = new DatagramPacket(turnIntoByteArrayClient(dataPacket), 
+						turnIntoByteArrayClient(dataPacket).length, inetAddress, port);
+				datagramSocket.send(requestPacket);
+				printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
+			}
+			timedOut = receiveAckPacket();
 		}
 		DatagramPacket flagPacket = new DatagramPacket(new byte[0], 0, inetAddress, port);
 		System.out.println("Sending empty packet: " + flagPacket.getLength()); //TODO: Debug print statement DELETE After
 		datagramSocket.send(flagPacket); // Send an empty packet to denote no data left to send. (Our flag)
+	}
+	
+	public boolean receiveAckPacket() throws SocketException, IOException, ClassNotFoundException {
+		try {
+			datagramSocket.setSoTimeout(timeout);  //Sets timeout for receive() method. If timeout is reached, we continue with code.
+			DatagramPacket responsePacket = new DatagramPacket(new byte[1024], 1024);
+			datagramSocket.receive(responsePacket);
+			System.out.println(checkAckPacket(responsePacket));
+			if (checkAckPacket(responsePacket)) {
+				startOffset += packetSize;
+				seqnoCounter++;
+				return false;
+			}
+			else {
+				return true;
+			}
+		} catch (SocketTimeoutException e) {
+			return true;
+		} 
 	}
 	
 	public Packet deserializeByteArray (DatagramPacket dp) throws IOException, ClassNotFoundException {
@@ -161,14 +155,24 @@ public class Client {
 	 * @throws IOException
 	 * @throws ClassNotFoundException 
 	 */
-	private synchronized boolean checkAckPacket(DatagramPacket ackPacket) throws ClassNotFoundException, IOException {
-		if (deserializeByteArray(ackPacket).getCksum() == 0 &&
-				deserializeByteArray(ackPacket).getLen() == ackPacket.getData().length) {
-			if(deserializeByteArray(ackPacket).getAckno() >= seqnoCounter) { //TODO: Check if this is correct from https://mkyong.com/java/java-convert-byte-to-int-and-vice-versa/
-				return true;
+	private synchronized boolean checkAckPacket(DatagramPacket responsePacket) throws ClassNotFoundException, IOException {
+		Packet ackPacket = deserializeByteArray(responsePacket);
+		if (ackPacket.getData() == null) {
+			if (ackPacket.getCksum() == 0 && ackPacket.getLen() == 8) {
+				if(ackPacket.getAckno() >= seqnoCounter) {
+					return true;
+				}
 			}
+			return false;
 		}
-		return false;
+		else {
+			if (ackPacket.getCksum() == 0 && ackPacket.getLen() == ackPacket.toByteArray().length) {
+				if(ackPacket.getAckno() >= seqnoCounter) {
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 	
 	/**
@@ -220,18 +224,6 @@ public class Client {
 			e.printStackTrace();
 		}
 		System.out.println("Sent filepath: " + fileName);
-	}
-	
-	private int corrupt() {
-		if (Math.random() < corruptChance) {
-			if (Math.random() < .5) {
-				return 1;
-			} else {
-				return 2;
-			}
-		} else {
-			return 0;
-		}
 	}
 	
 	/**
