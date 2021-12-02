@@ -127,7 +127,11 @@ public class Server {
 		// base64 string to byte[]
 		byte[] decodeFileName = Base64.getDecoder().decode(encodedB64FileName);
 		String safeFileName = new String(decodeFileName); // Build string of decoded.
-		fileReceived = new File("image.jpg"); // Sets the new file to String of our decoded byte[]
+		safeFileName = safeFileName.trim();
+		String currentDir = System.getProperty("user.dir");
+		currentDir += "\\edu\\metrostate\\Receiver\\";
+		currentDir += safeFileName;
+		fileReceived = new File(currentDir); // Sets the new file to String of our decoded byte[]
 	}
 
 	/**
