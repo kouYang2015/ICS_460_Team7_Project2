@@ -18,7 +18,7 @@ import edu.metrostate.Packet.Packet;
 /**
  * Server side for parsing a file sent by UDP. Is able to create a file that contains data parsed from a byte stream received via UDP
  * connection from a client. It is able to handle corrupt data and ensures that the file is stable no matter any issues during
- * transmission.
+ * transmission. 
  * 
  * @author Kou Yang, Seth Prokop
  *
