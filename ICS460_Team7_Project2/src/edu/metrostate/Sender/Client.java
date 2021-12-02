@@ -276,7 +276,7 @@ public class Client {
 	 */
 	private synchronized void sendFileName(String fileName) {
 		DatagramPacket sendFileNamePacket = new DatagramPacket(fileName.getBytes(), fileName.getBytes().length,
-				inetAddress, DEFAULT_PORT);
+				inetAddress, port);
 		try {
 			datagramSocket.send(sendFileNamePacket);
 		} catch (IOException e) {
