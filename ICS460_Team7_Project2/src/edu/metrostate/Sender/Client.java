@@ -20,7 +20,7 @@ import java.net.UnknownHostException;
 
 public class Client {
 	private static final int DEFAULT_PORT = 12345;
-	private static final int DEFAULT_PACKET_SIZE = 200;
+	private static final int DEFAULT_PACKET_SIZE = 400;
 	private static final int DEFAULT_TIMEOUT = 2000;
 	private static final double DEFAULT_CORRUPTCHANCE = 0;
 	private int port;
@@ -87,6 +87,7 @@ public class Client {
 	public void sendPacket() throws IOException, ClassNotFoundException {
 		boolean timedOut = false; //Use this boolean to determine if timed out? Resets to false after a successful AckPacket
 		System.out.println("Content Length:" + fileContent.length + "\nbuffer Length: " + packetSize); // TODO: DEBUG STATEMENT DELETE AFTER
+		long startTime = System.currentTimeMillis();
 		while (true) {
 			if (seqnoCounter > Math.ceil(fileContent.length / packetSize)) { //Check if we sent all necessary packets
 				break;
@@ -107,7 +108,7 @@ public class Client {
 			default: // TODO: Send packet with no corruption.
 			}*/
 
-			long startTime = System.currentTimeMillis();
+			
 			datagramSocket.send(requestPacket);
 			printSendStatus(requestPacket, statusIdentifier, startTime, timedOut);
 			startOffset += packetSize;
