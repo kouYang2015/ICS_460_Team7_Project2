@@ -1,7 +1,11 @@
 package edu.metrostate.Packet;
 
 import java.io.Serializable;
-
+/**
+ * 
+ * @author Kou
+ *
+ */
 public class Packet implements Serializable{
 	private static final long serialVersionUID = 5064345598182630522L;
 	short cksum; //16-bit 2-byte 
